@@ -14,24 +14,11 @@ import { IBalancerAsset } from "./interfaces/IBalancerAsset.sol";
 import { ExitKind, IBalancerVault } from "./interfaces/IBalancerVault.sol";
 import { IAuraLocker } from "./interfaces/IAuraLocker.sol";
 import { IRewardDistributor } from "./interfaces/IRewardDistributor.sol";
-import { IBribesProcessor } from "./interfaces/IBribesProcessor.sol";
 import { IWeth } from "./interfaces/IWeth.sol";
 import { IDelegateRegistry } from "./interfaces/IDelegateRegistry.sol";
+import { IExtraRewardsMultiMerkle } from "./interfaces/IExtraRewardsMultiMerkle.sol";
 
-/**
- * Version 1:
- * - Basic version
- * Version 1.1:
- * - Fixes from CodeArena Contest
- * Version 1.2:
- * - Removes hardcoded redirection path for BADGER to the BadgerTree
- * - Introduces bribes redirection paths for certain bribe tokens
- * - Introduces the bribe redirection fee and processing
- * - Introduces a setter function for the above
- * - Introduces snapshot delegation
- */
-
-contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
+contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
@@ -41,9 +28,12 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
 
     bool private isClaimingBribes;
 
-    IBribesProcessor public bribesProcessor;
-
     uint256 public auraBalToBalEthBptMinOutBps;
+
+    address public constant PALADIN_VOTER_ETH = 0x68378fCB3A27D5613aFCfddB590d35a6e751972C;
+
+    IExtraRewardsMultiMerkle public constant PALADIN_REWARDS_MERKLE =
+        IExtraRewardsMultiMerkle(0x997523eF97E0b0a5625Ed2C197e61250acF4e5F1);
 
     IBalancerVault public constant BALANCER_VAULT = IBalancerVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
 
@@ -147,12 +137,6 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         processLocksOnReinvest = newProcessLocksOnReinvest;
     }
 
-    /// @dev Change the contract that handles bribes
-    function setBribesProcessor(IBribesProcessor newBribesProcessor) external {
-        _onlyGovernance();
-        bribesProcessor = newBribesProcessor;
-    }
-
     /// @dev Sets the redirection path for a given token as well as the redirection fee to
     ///      process for it.
     /// @notice There can only be one recepient per token, calling this function for the same
@@ -177,15 +161,14 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     /// @dev Function to move rewards that are not protected
     /// @notice Only not protected, moves the whole amount using _handleRewardTransfer
     /// @notice because token paths are hardcoded, this function is safe to be called by anyone
-    /// @notice Will not notify the BRIBES_PROCESSOR as this could be triggered outside bribes
     function sweepRewardToken(address token) external nonReentrant {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
         _sweepRewardToken(token);
     }
 
     /// @dev Bulk function for sweepRewardToken
     function sweepRewards(address[] calldata tokens) external nonReentrant {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
 
         uint256 length = tokens.length;
         for (uint256 i = 0; i < length; ++i) {
@@ -194,7 +177,7 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     }
 
     function setAuraBalToBalEthBptMinOutBps(uint256 _minOutBps) external {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
         require(_minOutBps <= MAX_BPS, "Invalid minOutBps");
 
         auraBalToBalEthBptMinOutBps = _minOutBps;
@@ -204,12 +187,12 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
 
     /// @dev Return the name of the strategy
     function getName() external pure override returns (string memory) {
-        return "vlAURA Voting Strategy";
+        return "GOLD vlAURA Voting Strategy";
     }
 
     /// @dev Specify the version of the Strategy, for upgrades
     function version() external pure returns (string memory) {
-        return "1.2";
+        return "1.0";
     }
 
     /// @dev Does this function require `tend` to be called?
@@ -250,12 +233,6 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         return LOCKER.delegates(address(this));
     }
 
-    /// @dev Get aura locker delegate address
-    /// @dev Duplicate of getAuraLockerDelegate() for legacy support
-    function getDelegate() public view returns (address) {
-        return LOCKER.delegates(address(this));
-    }
-
     /// @dev Get snapshot delegation, for a given space ID
     function getSnapshotDelegate(bytes32 id) external view returns (address) {
         return SNAPSHOT.delegation(address(this), id);
@@ -275,7 +252,7 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     }
 
     /// @dev Withdraw all funds, this is used for migrations, most of the time for emergency reasons
-    function _withdrawAll() internal override {
+    function _withdrawAll() internal view override {
         //NOTE: This probably will always fail unless we have all tokens expired
         require(balanceOfPool() == 0 && LOCKER.balanceOf(address(this)) == 0, "Tokens still locked");
 
@@ -373,76 +350,10 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         }
     }
 
-    /// @dev allows claiming of multiple bribes
-    /// @notice Hidden hand only allows to claim all tokens at once, not individually.
-    ///         Allows claiming any token as it uses the difference in balance
-    function claimBribesFromHiddenHand(
-        IRewardDistributor hiddenHandDistributor,
-        IRewardDistributor.Claim[] calldata _claims
-    )
-        external
-        nonReentrant
-    {
-        _onlyGovernanceOrStrategist();
-        uint256 numClaims = _claims.length;
-
-        uint256 beforeVaultBalance = _getBalance();
-        uint256 beforePricePerFullShare = _getPricePerFullShare();
-
-        // Hidden hand uses BRIBE_VAULT address as a substitute for ETH
-        address hhBribeVault = hiddenHandDistributor.BRIBE_VAULT();
-
-        // Track token balances before bribes claim
-        uint256[] memory beforeBalance = new uint256[](numClaims);
-        for (uint256 i = 0; i < numClaims; ++i) {
-            (address token,,,) = hiddenHandDistributor.rewards(_claims[i].identifier);
-            if (token == hhBribeVault) {
-                beforeBalance[i] = address(this).balance;
-            } else {
-                beforeBalance[i] = IERC20Upgradeable(token).balanceOf(address(this));
-            }
-        }
-
-        // Claim bribes
-        isClaimingBribes = true;
-        hiddenHandDistributor.claim(_claims);
-        isClaimingBribes = false;
-
-        bool nonZeroDiff; // Cached value but also to check if we need to notifyProcessor
-        // Ultimately it's proof of non-zero which is good enough
-
-        for (uint256 i = 0; i < numClaims; ++i) {
-            (address token,,,) = hiddenHandDistributor.rewards(_claims[i].identifier);
-
-            if (token == hhBribeVault) {
-                // ETH
-                uint256 difference = address(this).balance.sub(beforeBalance[i]);
-                if (difference > 0) {
-                    address recepient = bribesRedirectionPaths[address(WETH)];
-                    IWeth(address(WETH)).deposit{ value: difference }();
-                    if (recepient == address(0)) {
-                        nonZeroDiff = true;
-                    }
-                    _handleRewardTransfer(address(WETH), recepient, difference);
-                }
-            } else {
-                uint256 difference = IERC20Upgradeable(token).balanceOf(address(this)).sub(beforeBalance[i]);
-                if (difference > 0) {
-                    address recepient = bribesRedirectionPaths[token];
-                    if (recepient == address(0)) {
-                        nonZeroDiff = true;
-                    }
-                    _handleRewardTransfer(token, recepient, difference);
-                }
-            }
-        }
-
-        if (nonZeroDiff) {
-            _notifyBribesProcessor();
-        }
-
-        require(beforeVaultBalance == _getBalance(), "Balance can't change");
-        require(beforePricePerFullShare == _getPricePerFullShare(), "Ppfs can't change");
+    /// @notice Claims rewards from Paladin using merkle proofs and queue rewards
+    function claimPaladinAndQueueRewards(IExtraRewardsMultiMerkle.ClaimParams[] calldata claims) external {
+        _onlyGovernance();
+        PALADIN_REWARDS_MERKLE.multiClaim(address(this), claims);
     }
 
     // Example tend is a no-op which returns the values, could also just revert
@@ -485,21 +396,6 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         _transferToVault(auraAmount);
     }
 
-    function checkUpkeep(bytes calldata checkData)
-        external
-        view
-        returns (bool upkeepNeeded, bytes memory performData)
-    {
-        (, uint256 unlockable,,) = LOCKER.lockedBalances(address(this));
-        upkeepNeeded = unlockable > 0;
-    }
-
-    /// @dev Function for ChainLink Keepers to automatically process expired locks
-    function performUpkeep(bytes calldata performData) external {
-        // Works like this because it reverts if lock is not expired
-        LOCKER.processExpiredLocks(false);
-    }
-
     function _getBalance() internal view returns (uint256) {
         return IVault(vault).balance();
     }
@@ -513,24 +409,7 @@ contract MyStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         // NOTE: Tokens with an assigned recepient are sent there
         if (recepient != address(0)) {
             _sendTokenToBriber(token, recepient, amount);
-            // NOTE: All other tokens are sent to the bribes processor
-        } else {
-            _sendTokenToBribesProcessor(token, amount);
         }
-    }
-
-    /// @dev Notify the BribesProcessor that a new round of bribes has happened
-    function _notifyBribesProcessor() internal {
-        bribesProcessor.notifyNewRound();
-    }
-
-    /// @dev Send funds to the bribes receiver
-    function _sendTokenToBribesProcessor(address token, uint256 amount) internal {
-        address cachedBribesProcessor = address(bribesProcessor);
-        require(cachedBribesProcessor != address(0), "Bribes processor not set");
-
-        IERC20Upgradeable(token).safeTransfer(cachedBribesProcessor, amount);
-        emit RewardsCollected(token, amount);
     }
 
     /// @dev Takes a fee on the token and sends remaining to the given briber recepient

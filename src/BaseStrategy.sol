@@ -18,7 +18,7 @@ abstract contract BaseStrategy is PausableUpgradeable {
     using AddressUpgradeable for address;
     using SafeMathUpgradeable for uint256;
 
-    uint256 public constant MAX_BPS = 10_000; // MAX_BPS in terms of BPS = 100%
+    uint256 public constant MAX_BPS = 10_000; // BIPS
 
     address public want; // Token used for deposits
     address public vault; // address of the vault the strategy is connected to
@@ -63,12 +63,6 @@ abstract contract BaseStrategy is PausableUpgradeable {
     ///      Most of the time setting setters, or to rescue/sweep funds
     function _onlyGovernance() internal view {
         require(msg.sender == governance(), "onlyGovernance");
-    }
-
-    /// @notice Checks whether a call is from strategist or governance.
-    /// @dev For functions that only known benign entities should call
-    function _onlyGovernanceOrStrategist() internal view {
-        require(msg.sender == strategist() || msg.sender == governance(), "onlyGovernanceOrStrategist");
     }
 
     /// @notice Checks whether a call is from keeper or governance.
@@ -148,12 +142,6 @@ abstract contract BaseStrategy is PausableUpgradeable {
         return IVault(vault).governance();
     }
 
-    /// @notice Fetches the strategist address from the vault.
-    /// @return The strategist address.
-    function strategist() public view returns (address) {
-        return IVault(vault).strategist();
-    }
-
     /// @notice Fetches the keeper address from the vault.
     /// @return The keeper address.
     function keeper() public view returns (address) {
@@ -203,7 +191,7 @@ abstract contract BaseStrategy is PausableUpgradeable {
 
     /// @notice Withdraw all funds from the strategy to the vault, unrolling all positions.
     ///         This can only be called by the vault.
-    /// @dev This can be called even when paused, and strategist can trigger this via the vault.
+    /// @dev This can be called even when paused, can trigger this via the vault.
     ///      The idea is that this can allow recovery of funds back to the strategy faster.
     ///      The risk is that if _withdrawAll causes a loss, this can be triggered.
     ///      However the loss could only be triggered once (just like if governance called)
@@ -356,7 +344,7 @@ abstract contract BaseStrategy is PausableUpgradeable {
     function getProtectedTokens() public view virtual returns (address[] memory);
 
     /// @dev Internal logic for strategy migration. Should exit positions as efficiently as possible.
-    function _withdrawAll() internal virtual;
+    function _withdrawAll() internal view virtual;
 
     /// @dev Internal logic for partial withdrawals. Should exit positions as efficiently as possible.
     ///      Should ideally use idle want in the strategy before attempting to exit strategy positions.
