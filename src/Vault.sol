@@ -12,8 +12,15 @@ import "../lib/openzeppelin-contracts-upgradeable/contracts/security/ReentrancyG
 
 import "./AccessControl.sol";
 
-import {IStrategy} from "./interfaces/IStrategy.sol";
-import {IERC20} from "../lib/forge-std/src/interfaces/IERC20.sol";
+import { IStrategy } from "./interfaces/IStrategy.sol";
+import { IERC20 } from "../lib/forge-std/src/interfaces/IERC20.sol";
+
+//
+//    |                              ___|   _ \   |      __ \
+//   __)   _` |  |   |   __|  _` |  |      |   |  |      |   |
+// \__ \  (   |  |   |  |    (   |  |   |  |   |  |      |   |
+// (   / \__,_| \__,_| _|   \__,_| \____| \___/  _____| ____/
+//   _|
 
 /*
     Source: https://github.com/iearn-finance/yearn-protocol/blob/develop/contracts/vaults/yVault.sol
@@ -37,8 +44,6 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     address public guardian; // guardian of vault and strategy
     address public treasury; // set by governance ... any fees go there
 
-    address public badgerTree; // Address we send tokens too via reportAdditionalTokens
-
     /// @dev name and symbol prefixes for lpcomponent token of vault
     string internal constant _defaultNamePrefix = "Gold Pounder ";
     string internal constant _symbolSymbolPrefix = "gold";
@@ -55,9 +60,9 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// Fees ///
     /// @notice all fees will be in bps
     uint256 public performanceFeeGovernance; // Perf fee sent to `treasury`
-    uint256 public performanceFeeStrategist; // Perf fee sent to `strategist`
     uint256 public withdrawalFee; // fee issued to `treasury` on withdrawal
-    uint256 public managementFee; // fee issued to `treasury` on report (typically on harvest, but only if strat is autocompounding)
+    uint256 public managementFee; // fee issued to `treasury` on report (typically on harvest, but only if strat is
+        // autocompounding)
 
     uint256 public maxPerformanceFee; // maximum allowed performance fees
     uint256 public maxWithdrawalFee; // maximum allowed withdrawal fees
@@ -71,24 +76,15 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     uint256 public constant SECS_PER_YEAR = 31_556_952; // 365.2425 days
 
     uint256 public constant WITHDRAWAL_FEE_HARD_CAP = 200; // Never higher than 2%
-    uint256 public constant PERFORMANCE_FEE_HARD_CAP = 3_000; // Never higher than 30% // 30% maximum performance fee // We usually do 20, so this is insanely high already
+    uint256 public constant PERFORMANCE_FEE_HARD_CAP = 3000; // Never higher than 30% // 30% maximum performance fee //
+        // We usually do 20, so this is insanely high already
     uint256 public constant MANAGEMENT_FEE_HARD_CAP = 200; // Never higher than 2%
 
     /// ===== Events ====
 
-    // Emitted when a token is sent to the badgerTree for emissions
-    event TreeDistribution(address indexed token, uint256 amount, uint256 indexed blockNumber, uint256 timestamp);
-
     // Emitted during a report, when there has been an increase in pricePerFullShare (ppfs)
     event Harvested(address indexed token, uint256 amount, uint256 indexed blockNumber, uint256 timestamp);
     event PerformanceFeeGovernance(
-        address indexed destination,
-        address indexed token,
-        uint256 amount,
-        uint256 indexed blockNumber,
-        uint256 timestamp
-    );
-    event PerformanceFeeStrategist(
         address indexed destination,
         address indexed token,
         uint256 amount,
@@ -111,7 +107,6 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     event SetMaxManagementFee(uint256 newMaxManagementFee);
     event SetGuardian(address indexed newGuardian);
     event SetWithdrawalFee(uint256 newWithdrawalFee);
-    event SetPerformanceFeeStrategist(uint256 newPerformanceFeeStrategist);
     event SetPerformanceFeeGovernance(uint256 newPerformanceFeeGovernance);
     event SetManagementFee(uint256 newManagementFee);
 
@@ -124,12 +119,10 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// @param _keeper Address authorized as keeper.
     /// @param _guardian Address authorized as guardian.
     /// @param _treasury Address to distribute governance fees/rewards to.
-    /// @param _strategist Address authorized as strategist.
-    /// @param _badgerTree Address of badgerTree used for emissions.
     /// @param _name Specify a custom sett name. Leave empty for default value.
     /// @param _symbol Specify a custom sett symbol. Leave empty for default value.
-    /// @param _feeConfig Values for the 4 different types of fees charges by the sett
-    ///         [performanceFeeGovernance, performanceFeeStrategist, withdrawToVault, managementFee]
+    /// @param _feeConfig Values for the 3 different types of fees charges by the sett
+    ///         [performanceFeeGovernance, withdrawToVault, managementFee]
     ///         Each fee should be less than the constant hard-caps defined above.
     function initialize(
         address _token,
@@ -137,25 +130,24 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         address _keeper,
         address _guardian,
         address _treasury,
-        address _strategist,
-        address _badgerTree,
         string memory _name,
         string memory _symbol,
-        uint256[4] memory _feeConfig
-    ) public initializer whenNotPaused {
+        uint256[3] memory _feeConfig
+    )
+        public
+        initializer
+        whenNotPaused
+    {
         require(_token != address(0)); // dev: _token address should not be zero
         require(_governance != address(0)); // dev: _governance address should not be zero
         require(_keeper != address(0)); // dev: _keeper address should not be zero
         require(_guardian != address(0)); // dev: _guardian address should not be zero
         require(_treasury != address(0)); // dev: _treasury address should not be zero
-        require(_strategist != address(0)); // dev: _strategist address should not be zero
-        require(_badgerTree != address(0)); // dev: _badgerTree address should not be zero
 
         // Check for fees being reasonable (see below for interpretation)
         require(_feeConfig[0] <= PERFORMANCE_FEE_HARD_CAP, "performanceFeeGovernance too high");
-        require(_feeConfig[1] <= PERFORMANCE_FEE_HARD_CAP, "performanceFeeStrategist too high");
-        require(_feeConfig[2] <= WITHDRAWAL_FEE_HARD_CAP, "withdrawalFee too high");
-        require(_feeConfig[3] <= MANAGEMENT_FEE_HARD_CAP, "managementFee too high");
+        require(_feeConfig[1] <= WITHDRAWAL_FEE_HARD_CAP, "withdrawalFee too high");
+        require(_feeConfig[2] <= MANAGEMENT_FEE_HARD_CAP, "managementFee too high");
 
         string memory name;
         string memory symbol;
@@ -185,22 +177,19 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         token = IERC20Upgradeable(_token);
         governance = _governance;
         treasury = _treasury;
-        strategist = _strategist;
         keeper = _keeper;
         guardian = _guardian;
-        badgerTree = _badgerTree;
 
         lastHarvestedAt = block.timestamp; // setting initial value to the time when the vault was deployed
 
         performanceFeeGovernance = _feeConfig[0];
-        performanceFeeStrategist = _feeConfig[1];
-        withdrawalFee = _feeConfig[2];
-        managementFee = _feeConfig[3];
+        withdrawalFee = _feeConfig[1];
+        managementFee = _feeConfig[2];
         maxPerformanceFee = PERFORMANCE_FEE_HARD_CAP; // 30% max performance fee
         maxWithdrawalFee = WITHDRAWAL_FEE_HARD_CAP; // 2% maximum withdrawal fee
         maxManagementFee = MANAGEMENT_FEE_HARD_CAP; // 2% maximum management fee
 
-        toEarnBps = 9_500; // initial value of toEarnBps // 95% is invested to the strategy, 5% for cheap withdrawals
+        toEarnBps = 9500; // initial value of toEarnBps // 95% is invested to the strategy, 5% for cheap withdrawals
     }
 
     /// ===== Modifiers ====
@@ -271,7 +260,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// ===== Permissioned Actions: Strategy =====
 
     /// @notice Used by the strategy to report a harvest to the sett.
-    ///         Issues shares for the strategist and treasury based on the performance fees and harvested amount.
+    ///         Issues shares for the treasury based on the performance fees and harvested amount.
     ///         Issues shares for the treasury based on the management fee and the time elapsed since last harvest.
     ///         Updates harvest variables for on-chain APR tracking.
     ///         This can only be called by the strategy.
@@ -309,7 +298,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Used by the strategy to report harvest of additional tokens to the sett.
-    ///         Charges performance fees on the additional tokens and transfers fees to treasury and strategist.
+    ///         Charges performance fees on the additional tokens and transfers fees to treasury.
     ///         The remaining amount is sent to badgerTree for emissions.
     ///         Updates harvest variables for on-chain APR tracking.
     ///         This can only be called by the strategy.
@@ -326,7 +315,6 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
 
         // We may have more, but we still report only what the strat sent
         uint256 governanceRewardsFee = _calculateFee(tokenBalance, performanceFeeGovernance);
-        uint256 strategistRewardsFee = _calculateFee(tokenBalance, performanceFeeStrategist);
 
         if (governanceRewardsFee != 0) {
             address cachedTreasury = treasury;
@@ -334,16 +322,11 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
             emit PerformanceFeeGovernance(cachedTreasury, _token, governanceRewardsFee, block.number, block.timestamp);
         }
 
-        if (strategistRewardsFee != 0) {
-            address cachedStrategist = strategist;
-            IERC20Upgradeable(_token).safeTransfer(cachedStrategist, strategistRewardsFee);
-            emit PerformanceFeeStrategist(cachedStrategist, _token, strategistRewardsFee, block.number, block.timestamp);
-        }
-
+        // TODO: figure out what to do with this
         // Send rest to tree
-        uint256 newBalance = IERC20Upgradeable(_token).balanceOf(address(this));
-        IERC20Upgradeable(_token).safeTransfer(badgerTree, newBalance);
-        emit TreeDistribution(_token, newBalance, block.number, block.timestamp);
+        //        uint256 newBalance = IERC20Upgradeable(_token).balanceOf(address(this));
+        //        IERC20Upgradeable(_token).safeTransfer(badgerTree, newBalance);
+        //        emit TreeDistribution(_token, newBalance, block.number, block.timestamp);
     }
 
     /// ===== Permissioned Actions: Governance =====
@@ -366,7 +349,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     ///         Note that this can only be called when sett is not paused.
     /// @dev This is a rug vector, pay extremely close attention to the next strategy being set.
     ///      Changing the strategy should happen only via timelock.
-    ///      This function must not be callable when the sett is paused as this would force depositors into a strategy they may not want to use.
+    ///      This function must not be callable when the sett is paused as this would force depositors into a strategy
+    /// they may not want to use.
     /// @param _strategy Address of new strategy.
     function setStrategy(address _strategy) external whenNotPaused {
         _onlyGovernance();
@@ -400,7 +384,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// @param _fees The new maximum cap for performance fee.
     function setMaxPerformanceFee(uint256 _fees) external {
         _onlyGovernance();
-        require(_fees <= PERFORMANCE_FEE_HARD_CAP, "performanceFeeStrategist too high");
+        require(_fees <= PERFORMANCE_FEE_HARD_CAP, "performance fee too high");
 
         maxPerformanceFee = _fees;
         emit SetMaxPerformanceFee(_fees);
@@ -433,11 +417,11 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// ===== Permissioned Functions: Trusted Actors =====
 
     /// @notice Sets the fraction of sett balance (in basis points) that the strategy can borrow.
-    ///         This can be called by either governance or strategist.
+    ///         This can be called by governance.
     ///         Note that this can only be called when the sett is not paused.
     /// @param _newToEarnBps The new maximum cap for management fee.
     function setToEarnBps(uint256 _newToEarnBps) external whenNotPaused {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
         require(_newToEarnBps <= MAX_BPS, "toEarnBps should be <= MAX_BPS");
 
         toEarnBps = _newToEarnBps;
@@ -445,41 +429,28 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Sets the withdrawal fee charged by the Sett.
-    ///         The fee is taken at the time of withdrawals in the underlying token which is then used to issue new shares for the treasury.
+    ///         The fee is taken at the time of withdrawals in the underlying token which is then used to issue new
+    /// shares for the treasury.
     ///         The new withdrawal fee should be less than `maxWithdrawalFee`.
-    ///         This can be called by either governance or strategist.
+    ///         This can be called by either governance.
     /// @dev See `_withdraw` to see how withdrawal fee is charged.
     /// @param _withdrawalFee The new withdrawal fee.
     function setWithdrawalFee(uint256 _withdrawalFee) external whenNotPaused {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
         require(_withdrawalFee <= maxWithdrawalFee, "Excessive withdrawal fee");
         withdrawalFee = _withdrawalFee;
         emit SetWithdrawalFee(_withdrawalFee);
-    }
-
-    /// @notice Sets the performance fee taken by the strategist on the harvests.
-    ///         The fee is taken at the time of harvest reporting for both the underlying token and additional tokens.
-    ///         For the underlying token, the fee is used to issue new shares for the strategist.
-    ///         The new performance fee should be less than `maxPerformanceFee`.
-    ///         This can be called by either governance or strategist.
-    /// @dev See `reportHarvest` and `reportAdditionalToken` to see how performance fees are charged.
-    /// @param _performanceFeeStrategist The new performance fee.
-    function setPerformanceFeeStrategist(uint256 _performanceFeeStrategist) external whenNotPaused {
-        _onlyGovernanceOrStrategist();
-        require(_performanceFeeStrategist <= maxPerformanceFee, "Excessive strategist performance fee");
-        performanceFeeStrategist = _performanceFeeStrategist;
-        emit SetPerformanceFeeStrategist(_performanceFeeStrategist);
     }
 
     /// @notice Sets the performance fee taken by the treasury on the harvests.
     ///         The fee is taken at the time of harvest reporting for both the underlying token and additional tokens.
     ///         For the underlying token, the fee is used to issue new shares for the treasury.
     ///         The new performance fee should be less than `maxPerformanceFee`.
-    ///         This can be called by either governance or strategist.
+    ///         This can be called by either governance.
     /// @dev See `reportHarvest` and `reportAdditionalToken` to see how performance fees are charged.
     /// @param _performanceFeeGovernance The new performance fee.
     function setPerformanceFeeGovernance(uint256 _performanceFeeGovernance) external whenNotPaused {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
         require(_performanceFeeGovernance <= maxPerformanceFee, "Excessive governance performance fee");
         performanceFeeGovernance = _performanceFeeGovernance;
         emit SetPerformanceFeeGovernance(_performanceFeeGovernance);
@@ -488,11 +459,11 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// @notice Sets the management fee taken by the treasury on the AUM in the sett.
     ///         The fee is calculated at the time of `reportHarvest` and is used to issue new shares for the treasury.
     ///         The new management fee should be less than `maxManagementFee`.
-    ///         This can be called by either governance or strategist.
+    ///         This can be called by governance.
     /// @dev See `_handleFees` to see how the management fee is calculated.
     /// @param _fees The new management fee.
     function setManagementFee(uint256 _fees) external whenNotPaused {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
         require(_fees <= maxManagementFee, "Excessive management fee");
         managementFee = _fees;
         emit SetManagementFee(_fees);
@@ -501,32 +472,31 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// === Strategist level operations that can be done even when paused ==
 
     /// @notice Withdraws all funds from the strategy back to the sett.
-    ///         This can be called by either governance or strategist.
+    ///         This can be called by either governance.
     /// @dev This calls `_withdrawAll` on the strategy and transfers the balance to the sett.
     function withdrawToVault() external {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
         IStrategy(strategy).withdrawToVault();
     }
 
     /// @notice Sends balance of any extra token earned by the strategy (from airdrops, donations etc.)
-    ///         to the badgerTree for emissions.
     ///         The `_token` should be different from any tokens managed by the strategy.
-    ///         This can only be called by either strategist or governance.
+    ///         This can only be called by  governance.
     /// @dev See `BaseStrategy.emitNonProtectedToken` for details.
     /// @param _token Address of the token to be emitted.
     function emitNonProtectedToken(address _token) external {
-        _onlyGovernanceOrStrategist();
-
+        _onlyGovernance();
+        // TODO: Figure out where to send this, most likely to the vault itself
         IStrategy(strategy).emitNonProtectedToken(_token);
     }
 
     /// @notice Sweeps the balance of an extra token from the vault and strategy and sends it to governance.
     ///         The `_token` should be different from any tokens managed by the strategy.
-    ///         This can only be called by either strategist or governance.
+    ///         This can only be called by governance.
     /// @dev Sweeping doesn't take any fee.
     /// @param _token Address of the token to be swept.
     function sweepExtraToken(address _token) external {
-        _onlyGovernanceOrStrategist();
+        _onlyGovernance();
         require(address(token) != _token, "No want");
 
         IStrategy(strategy).withdrawOther(_token);
@@ -649,15 +619,13 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         return fee;
     }
 
-    /// @dev Helper function to calculate governance and strategist performance fees. Make sure to use it to get paid!
+    /// @dev Helper function to calculate governance and performance fees. Make sure to use it to get paid!
     /// @param _amount Amount to calculate fee on.
-    /// @return Tuple containing amount of (governance, strategist) fees to take.
-    function _calculatePerformanceFee(uint256 _amount) internal view returns (uint256, uint256) {
+    /// @return uint containing amount of governance fees to take.
+    function _calculatePerformanceFee(uint256 _amount) internal view returns (uint256) {
         uint256 governancePerformanceFee = _calculateFee(_amount, performanceFeeGovernance);
 
-        uint256 strategistPerformanceFee = _calculateFee(_amount, performanceFeeStrategist);
-
-        return (governancePerformanceFee, strategistPerformanceFee);
+        return governancePerformanceFee;
     }
 
     /// @dev Helper function to issue shares to `recipient` based on an input `_amount` and `_pool` size.
@@ -681,7 +649,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// @param _harvestedAmount The harvested amount to take fee on.
     /// @param harvestTime Time of harvest (block.timestamp).
     function _handleFees(uint256 _harvestedAmount, uint256 harvestTime) internal {
-        (uint256 feeGovernance, uint256 feeStrategist) = _calculatePerformanceFee(_harvestedAmount);
+        uint256 feeGovernance = _calculatePerformanceFee(_harvestedAmount);
         uint256 duration = harvestTime.sub(lastHarvestedAt);
 
         // Management fee is calculated against the assets before harvest, to make it fair to depositors
@@ -693,7 +661,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         // Pool size is the size of the pool minus the fees, this way
         // it's equivalent to sending the tokens as rewards after the harvest
         // and depositing them again
-        uint256 _pool = balance().sub(totalGovernanceFee).sub(feeStrategist);
+        uint256 _pool = balance().sub(totalGovernanceFee);
 
         // Minted fee shares for accounting events
         uint256 feeInShares;
@@ -703,13 +671,6 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
             address cachedTreasury = treasury;
             feeInShares = _mintSharesFor(cachedTreasury, totalGovernanceFee, _pool);
             emit PerformanceFeeGovernance(cachedTreasury, address(this), feeInShares, block.number, block.timestamp);
-        }
-
-        if (feeStrategist != 0 && strategist != address(0)) {
-            // NOTE: adding feeGovernance backed to _pool as shares would have been issued for it.
-            address cachedStrategist = strategist;
-            feeInShares = _mintSharesFor(cachedStrategist, feeStrategist, _pool.add(totalGovernanceFee));
-            emit PerformanceFeeStrategist(cachedStrategist, address(this), feeInShares, block.number, block.timestamp);
         }
     }
 }
