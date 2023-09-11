@@ -9,6 +9,7 @@ import "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initiali
 */
 contract AccessControl is Initializable {
     address public governance;
+    address public strategist;
     address public keeper;
 
     // ===== MODIFIERS =====
@@ -16,11 +17,22 @@ contract AccessControl is Initializable {
         require(msg.sender == governance, "onlyGovernance");
     }
 
+    function _onlyGovernanceOrStrategist() internal view {
+        require(msg.sender == strategist || msg.sender == governance, "onlyGovernanceOrStrategist");
+    }
+
     function _onlyAuthorizedActors() internal view {
         require(msg.sender == keeper || msg.sender == governance, "onlyAuthorizedActors");
     }
 
     // ===== PERMISSIONED ACTIONS =====
+
+    /// @notice Change strategist address
+    /// @notice Can only be changed by governance itself
+    function setStrategist(address _strategist) external {
+        _onlyGovernance();
+        strategist = _strategist;
+    }
 
     /// @notice Change keeper address
     /// @notice Can only be changed by governance itself
