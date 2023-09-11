@@ -10,6 +10,6 @@ contract TestVault is BaseFixture {
     }
 
     function testSetup() public {
-        assertEq(goldAURA.admin(), address(1377));
+        assertEq(goldAURA.admin(), address(this));
     }
 }
