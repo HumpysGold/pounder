@@ -1,9 +1,15 @@
 name: test
 
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
 
 env:
   FOUNDRY_PROFILE: ci
+  ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
 
 jobs:
   check:
