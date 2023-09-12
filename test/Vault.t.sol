@@ -44,4 +44,22 @@ contract TestVault is BaseFixture {
         // Check total supply should be equal to alice's balance
         assertEq(vault.totalSupply(), _depositAmount);
     }
+
+    function testSimpleWithdraw(uint256 _depositAmount) public {
+        vm.assume(_depositAmount > 1e18);
+        vm.assume(_depositAmount < 100_000_000e18);
+        // Give alice some AURA:
+        setStorage(alice, AURA.balanceOf.selector, address(AURA), _depositAmount);
+        vm.startPrank(alice);
+        // Approve the vault to spend AURA:
+        AURA.approve(address(vault), _depositAmount);
+        vault.deposit(_depositAmount);
+        vm.stopPrank();
+        // Now withdraw from vault and as alice is single depositor, she should get all AURA back
+        vm.startPrank(alice);
+        vault.withdraw(_depositAmount * 1e18 / vault.getPricePerFullShare());
+        vm.stopPrank();
+        assertEq(AURA.balanceOf(address(vault)), 0);
+        assertEq(AURA.balanceOf(address(alice)), _depositAmount);
+    }
 }
