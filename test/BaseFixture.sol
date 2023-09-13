@@ -20,6 +20,7 @@ contract BaseFixture is Test {
     address public bob;
     address public basedAdmin;
     address public governance;
+    address public treasury;
     AdminUpgradeabilityProxy public goldAURAProxy;
     AdminUpgradeabilityProxy public auraStrategyProxy;
     Vault public vaultImpl;
@@ -28,6 +29,8 @@ contract BaseFixture is Test {
     // Exported for testing
     AuraStrategy public auraStrategy;
     Vault public vault;
+
+    uint256 public constant BIPS = 10_000;
 
     function setStorage(address _user, bytes4 _selector, address _contract, uint256 value) public {
         uint256 slot = stdstore.target(_contract).sig(_selector).with_key(_user).find();
@@ -38,7 +41,7 @@ contract BaseFixture is Test {
         // https://etherscan.io/block/18090274
         vm.createSelectFork("mainnet", 18_090_274);
         utils = new Utils();
-        users = utils.createUsers(4);
+        users = utils.createUsers(5);
         alice = users[0];
         vm.label(alice, "Alice");
         bob = users[1];
@@ -47,6 +50,8 @@ contract BaseFixture is Test {
         vm.label(basedAdmin, "Based Admin");
         governance = users[3];
         vm.label(governance, "Governance");
+        treasury = users[4];
+        vm.label(treasury, "Treasury");
         uint256[4] memory _feeConfig = [uint256(0), uint256(0), uint256(0), uint256(0)];
         string memory _name = "Gold Aura";
         string memory _symbol = "gAURA";
@@ -56,7 +61,7 @@ contract BaseFixture is Test {
             governance, // governance
             address(1337), //  keeper
             address(1337), // guardian
-            address(1337),
+            treasury,
             address(1337),
             _name,
             _symbol,
