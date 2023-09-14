@@ -67,4 +67,6 @@ interface IAuraLocker {
     function delegate(address newDelegatee) external;
 
     function delegates(address account) external view returns (address);
+
+    function queueNewRewards(address _rewardsToken, uint256 _rewards) external;
 }
