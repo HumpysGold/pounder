@@ -140,6 +140,46 @@ contract TestAuraStrategy is BaseFixture {
     }
 
     /////////////////////////////////////////////////////////////////////////////
-    ///////                Manual lock processing tests                     /////
+    ///////                      Manual ops tests                           /////
     /////////////////////////////////////////////////////////////////////////////
+    /// @dev Manual ops to process expired locks, withdraw aura from locker and send to vault
+    function testManualProcessExpiredLock(uint96 _depositPerUser) public {
+        vm.assume(_depositPerUser > 10e18);
+        vm.assume(_depositPerUser < 100_000e18);
+        _setupStrategy(_depositPerUser);
+        // Check that strategy invested all loose AURA into locker
+        assertEq(AURA.balanceOf(address(auraStrategy)), 0);
+        uint256 auraVaultSnapshot = AURA.balanceOf(address(vault));
+        vm.startPrank(governance);
+        // Reverts because no locks expired yet
+        vm.expectRevert("no exp locks");
+        auraStrategy.manualProcessExpiredLocks();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 200 days);
+
+        vm.prank(governance);
+        auraStrategy.manualProcessExpiredLocks();
+
+        // Check AURA balance of strategy
+        assertGt(AURA.balanceOf(address(auraStrategy)), 0);
+
+        // Transfer to vault and make sure vault received it
+        vm.prank(governance);
+        auraStrategy.manualSendAuraToVault();
+
+        assertGt(AURA.balanceOf(address(vault)), auraVaultSnapshot);
+    }
+
+    /// @dev Simple check that if ran with 0 AURA to transfer it would not fail
+    function testManualSendToVaultShouldNotFailIfNoAura(uint96 _depositPerUser) public {
+        vm.assume(_depositPerUser > 10e18);
+        vm.assume(_depositPerUser < 100_000e18);
+        _setupStrategy(_depositPerUser);
+        assertEq(AURA.balanceOf(address(auraStrategy)), 0);
+        uint256 auraVaultSnapshot = AURA.balanceOf(address(vault));
+        vm.prank(governance);
+        auraStrategy.manualSendAuraToVault();
+        assertEq(AURA.balanceOf(address(vault)), auraVaultSnapshot);
+    }
 }
