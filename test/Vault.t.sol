@@ -135,4 +135,38 @@ contract TestVault is BaseFixture {
 
         assertGt(vault.balanceOf(alice), 0);
     }
+
+    /// @dev Simple earn test to make sure funds are transferred to strategy
+    function testSimpleEarn(uint256 _depositAmount) public {
+        vm.assume(_depositAmount > 10e18);
+        vm.assume(_depositAmount < 100_000_000e18);
+        // Give alice some AURA:
+        setStorage(alice, AURA.balanceOf.selector, address(AURA), _depositAmount);
+        vm.startPrank(alice);
+        // Approve the vault to spend AURA:
+        AURA.approve(address(vault), _depositAmount);
+        vault.deposit(_depositAmount);
+        vm.stopPrank();
+
+        // Give bob some AURA:
+        setStorage(bob, AURA.balanceOf.selector, address(AURA), _depositAmount);
+        vm.startPrank(bob);
+        // Approve the vault to spend AURA:
+        AURA.approve(address(vault), _depositAmount);
+        vault.deposit(_depositAmount);
+        vm.stopPrank();
+
+        // Snapshot AURA balance of strategy
+        uint256 vaultBalanceBefore = AURA.balanceOf(address(vault));
+        vm.prank(governance);
+        vault.earn();
+        // Make sure X% of AURA is transferred to strategy
+        console2.log("vaultBalanceBefore", vaultBalanceBefore);
+        assertFalse(AURA.balanceOf(address(vault)) == 0);
+        assertEq(AURA.balanceOf(address(vault)), vaultBalanceBefore - vaultBalanceBefore * vault.toEarnBps() / BIPS);
+        // Make sure aura locked in strategy and not available for withdraw
+        assertEq(auraStrategy.balanceOfWant(), 0);
+        // Make sure aura is locked in strategy
+        assertEq(auraStrategy.balanceOfPool(), vaultBalanceBefore * vault.toEarnBps() / BIPS);
+    }
 }
