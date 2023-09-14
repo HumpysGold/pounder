@@ -99,4 +99,47 @@ contract TestAuraStrategy is BaseFixture {
         // Make sure loose aura assets were deposited back into locker
         assertGt(auraStrategy.balanceOfPool(), balanceOfPoolSnapshot);
     }
+
+    /// @dev Case when vault invested 100% of AURA into strategy and it gets locked, so users cannot withdraw
+    function testHarvestFullInvested(uint96 _depositPerUser) public {
+        vm.assume(_depositPerUser > 10e18);
+        vm.assume(_depositPerUser < 100_000e18);
+        // Increase ToEarnBps to 100% to check that withdrawals are not possible
+        vm.prank(governance);
+        vault.setToEarnBps(BIPS);
+        _setupStrategy(_depositPerUser);
+
+        vm.warp(block.timestamp + 14 days);
+        vm.prank(governance);
+        auraStrategy.harvest();
+
+        vm.prank(strategyUsers[0]);
+        // Reverts because no locks expired yet
+        vm.expectRevert("no exp locks");
+        vault.withdrawAll();
+    }
+
+    /// @dev Case opposite to above, when locks expires, users can withdraw from strategy that will unlock some AURA
+    function testHarvestFullInvestedButLockExpired(uint96 _depositPerUser) public {
+        vm.assume(_depositPerUser > 10e18);
+        vm.assume(_depositPerUser < 100_000e18);
+        // Increase ToEarnBps to 100% to check that withdrawals are not possible
+        vm.prank(governance);
+        vault.setToEarnBps(BIPS);
+        _setupStrategy(_depositPerUser);
+
+        vm.warp(block.timestamp + 14 days);
+        vm.prank(governance);
+        auraStrategy.harvest();
+
+        vm.warp(block.timestamp + 360 days);
+        vm.prank(strategyUsers[0]);
+        vault.withdrawAll();
+        // Make sure user got more AURA than he deposited
+        assertGt(AURA.balanceOf(strategyUsers[0]), _depositPerUser);
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
+    ///////                Manual lock processing tests                     /////
+    /////////////////////////////////////////////////////////////////////////////
 }
