@@ -23,6 +23,12 @@ contract TestVault is BaseFixture {
         assertEq(auraStrategyProxy.admin(), basedAdmin);
         assertEq(auraStrategyProxy.implementation(), address(auraStrategyImpl));
         vm.stopPrank();
+
+        // Misc checks
+        assertEq(auraStrategy.version(), "1.0");
+        assertEq(auraStrategy.getName(), "GOLD vlAURA Voting Strategy");
+
+        assertEq(vault.version(), "1.5");
     }
 
     function testSimpleDeposit(uint256 _depositAmount) public {
