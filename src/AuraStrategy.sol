@@ -3,6 +3,7 @@
 pragma solidity ^0.8.13;
 pragma experimental ABIEncoderV2;
 
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/token/ERC20/IERC20Upgradeable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/utils/math/SafeMathUpgradeable.sol";
@@ -17,6 +18,7 @@ import { IRewardDistributor } from "./interfaces/IRewardDistributor.sol";
 import { IWeth } from "./interfaces/IWeth.sol";
 import { IDelegateRegistry } from "./interfaces/IDelegateRegistry.sol";
 import { IExtraRewardsMultiMerkle } from "./interfaces/IExtraRewardsMultiMerkle.sol";
+import { IUniswapV2Router } from "./interfaces/IUniswapV2Router.sol";
 
 contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -46,6 +48,8 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     IERC20Upgradeable public constant AURA = IERC20Upgradeable(0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF);
     IERC20Upgradeable public constant AURABAL = IERC20Upgradeable(0x616e8BfA43F920657B3497DBf40D6b1A02D4608d);
     IERC20Upgradeable public constant BALETH_BPT = IERC20Upgradeable(0x5c6Ee304399DBdB9C8Ef030aB642B10820DB8F56);
+
+    IUniswapV2Router internal constant UNI_V2 = IUniswapV2Router(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
 
     bytes32 public constant AURABAL_BALETH_BPT_POOL_ID =
         0x3dd0843a028c86e0b760b1a76929d1c5ef93a2dd000200000000000000000249;
@@ -350,10 +354,63 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         }
     }
 
-    /// @notice Claims rewards from Paladin using merkle proofs and queue rewards
-    function claimPaladinAndQueueRewards(IExtraRewardsMultiMerkle.ClaimParams[] calldata claims) external {
-        _onlyGovernance();
+    /// @notice Claims rewards from Paladin using merkle proofs, sell everything to AURA and report to vault
+    function harvestPaladinDelegate(IExtraRewardsMultiMerkle.ClaimParams[] calldata claims)
+        external
+        returns (TokenAmount[] memory harvested)
+    {
+        _onlyAuthorizedActors();
+        uint256 wethBalanceBefore = WETH.balanceOf(address(this));
         PALADIN_REWARDS_MERKLE.multiClaim(address(this), claims);
+        harvested = new TokenAmount[](1);
+        harvested[0].token = address(AURA);
+        // Sell all  rewards to WETH
+        for (uint256 i; i < claims.length; i++) {
+            IERC20 reward_token = IERC20(claims[i].token);
+            // Skip if reward token is USDC or WETH
+            if (address(reward_token) == address(WETH)) continue;
+
+            uint256 reward_amount = reward_token.balanceOf(address(this));
+            // Approve reward token to uniswap, if rewards are 0 skip
+            if (reward_amount == 0) continue;
+            else if (reward_amount > 0) reward_token.approve(address(UNI_V2), reward_amount);
+
+            address[] memory path = new address[](2);
+            path[0] = address(reward_token);
+            path[1] = address(WETH);
+            try UNI_V2.swapExactTokensForTokens(reward_amount, uint256(0), path, address(this), block.timestamp)
+            returns (uint256[] memory amounts) {
+                emit RewardsCollected(address(reward_token), amounts[0]);
+            } catch {
+                // If univ2 pair wasn't found this means tokens can be swept later on
+                continue;
+            }
+        }
+        // Finally, swap all WETH to AURA
+        uint256 wethEarned = WETH.balanceOf(address(this)) - wethBalanceBefore;
+        if (wethEarned > 0) {
+            IBalancerVault.SingleSwap memory singleSwap;
+            singleSwap = IBalancerVault.SingleSwap({
+                poolId: AURA_ETH_POOL_ID,
+                kind: IBalancerVault.SwapKind.GIVEN_IN,
+                assetIn: IBalancerAsset(address(WETH)),
+                assetOut: IBalancerAsset(address(AURA)),
+                amount: wethEarned,
+                userData: new bytes(0)
+            });
+            IBalancerVault.FundManagement memory fundManagement = IBalancerVault.FundManagement({
+                sender: address(this),
+                fromInternalBalance: false,
+                recipient: payable(address(this)),
+                toInternalBalance: false
+            });
+            harvested[0].amount = BALANCER_VAULT.swap(singleSwap, fundManagement, 0, type(uint256).max);
+        }
+        // Report back to vault and deposit into locker
+        _reportToVault(harvested[0].amount);
+        if (harvested[0].amount > 0) {
+            _deposit(harvested[0].amount);
+        }
     }
 
     // Example tend is a no-op which returns the values, could also just revert
