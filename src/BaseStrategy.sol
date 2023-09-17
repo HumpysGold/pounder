@@ -112,7 +112,8 @@ abstract contract BaseStrategy is PausableUpgradeable {
     }
 
     /// @notice Gives the total balance of want managed by the strategy.
-    ///         This includes all want deposited to active strategy positions as well as any idle want in the strategy.
+    ///         This includes all want deposited to active strategy positions as well as any idle
+    /// want in the strategy.
     /// @return Total balance of want managed by the strategy.
     function balanceOf() external view returns (uint256) {
         return balanceOfWant().add(balanceOfPool());
@@ -168,9 +169,11 @@ abstract contract BaseStrategy is PausableUpgradeable {
 
     /// ===== Permissioned Actions: Governance =====
 
-    /// @notice Sets the max withdrawal deviation (percentage loss) that is acceptable to the strategy.
+    /// @notice Sets the max withdrawal deviation (percentage loss) that is acceptable to the
+    /// strategy.
     ///         This can only be called by governance.
-    /// @dev This is used as a slippage check against the actual funds withdrawn from strategy positions.
+    /// @dev This is used as a slippage check against the actual funds withdrawn from strategy
+    /// positions.
     ///      See `withdraw`.
     function setWithdrawalMaxDeviationThreshold(uint256 _threshold) external {
         _onlyGovernance();
@@ -217,10 +220,12 @@ abstract contract BaseStrategy is PausableUpgradeable {
         _transferToVault(balance);
     }
 
-    /// @notice Withdraw partial funds from the strategy to the vault, unrolling from strategy positions as necessary.
+    /// @notice Withdraw partial funds from the strategy to the vault, unrolling from strategy
+    /// positions as necessary.
     ///         This can only be called by the vault.
     ///         Note that withdraws don't work when the strategy is paused.
-    /// @dev If the strategy fails to recover sufficient funds (defined by `withdrawalMaxDeviationThreshold`),
+    /// @dev If the strategy fails to recover sufficient funds (defined by
+    /// `withdrawalMaxDeviationThreshold`),
     ///      the withdrawal would fail so that this unexpected behavior can be investigated.
     /// @param _amount Amount of funds required to be withdrawn.
     function withdraw(uint256 _amount) external whenNotPaused {
@@ -232,11 +237,13 @@ abstract contract BaseStrategy is PausableUpgradeable {
         uint256 _postWithdraw = IERC20Upgradeable(want).balanceOf(address(this));
 
         // Sanity check: Ensure we were able to retrieve sufficient want from strategy positions
-        // If we end up with less than the amount requested, make sure it does not deviate beyond a maximum threshold
+        // If we end up with less than the amount requested, make sure it does not deviate beyond a
+        // maximum threshold
         if (_postWithdraw < _amount) {
             uint256 diff = _diff(_amount, _postWithdraw);
 
-            // Require that difference between expected and actual values is less than the deviation threshold
+            // Require that difference between expected and actual values is less than the deviation
+            // threshold
             // percentage
             require(
                 diff <= _amount.mul(withdrawalMaxDeviationThreshold).div(MAX_BPS),
@@ -252,11 +259,13 @@ abstract contract BaseStrategy is PausableUpgradeable {
     }
 
     // Discussion: https://discord.com/channels/785315893960900629/837083557557305375
-    /// @notice Sends balance of any extra token earned by the strategy (from airdrops, donations etc.) to the vault.
+    /// @notice Sends balance of any extra token earned by the strategy (from airdrops, donations
+    /// etc.) to the vault.
     ///         The `_token` should be different from any tokens managed by the strategy.
     ///         This can only be called by the vault.
     /// @dev This is a counterpart to `_processExtraToken`.
-    ///      This is for tokens that the strategy didn't expect to receive. Instead of sweeping, we can directly
+    ///      This is for tokens that the strategy didn't expect to receive. Instead of sweeping, we
+    /// can directly
     ///      emit them via the badgerTree. This saves time while offering security guarantees.
     ///      No address(0) check because _onlyNotProtectedTokens does it.
     ///      This is not a rug vector as it can't use protected tokens.
@@ -314,14 +323,18 @@ abstract contract BaseStrategy is PausableUpgradeable {
         IVault(vault).reportHarvest(_harvestedAmount);
     }
 
-    /// @notice Sends balance of an additional token (eg. reward token) earned by the strategy to the vault.
+    /// @notice Sends balance of an additional token (eg. reward token) earned by the strategy to
+    /// the vault.
     ///         This should usually be called exclusively on protectedTokens.
-    ///         Calls `Vault.reportAdditionalToken` to process fees and forward amount to badgerTree to be emitted.
+    ///         Calls `Vault.reportAdditionalToken` to process fees and forward amount to badgerTree
+    /// to be emitted.
     /// @dev This is how you emit tokens in V1.5
     ///      After calling this function, the tokens are gone, sent to fee receivers and badgerTree
     ///      This is a rug vector as it allows to move funds to the tree
-    ///      For this reason, it is recommended to verify the tree is the badgerTree from the registry
-    ///      and also check for this to be used exclusively on harvest, exclusively on protectedTokens.
+    ///      For this reason, it is recommended to verify the tree is the badgerTree from the
+    /// registry
+    ///      and also check for this to be used exclusively on harvest, exclusively on
+    /// protectedTokens.
     /// @param _token Address of the token to be emitted.
     /// @param _amount Amount of token to transfer to vault.
     function _processExtraToken(address _token, uint256 _amount) internal {
@@ -355,11 +368,14 @@ abstract contract BaseStrategy is PausableUpgradeable {
     /// @return Array of protected tokens.
     function getProtectedTokens() public view virtual returns (address[] memory);
 
-    /// @dev Internal logic for strategy migration. Should exit positions as efficiently as possible.
+    /// @dev Internal logic for strategy migration. Should exit positions as efficiently as
+    /// possible.
     function _withdrawAll() internal virtual;
 
-    /// @dev Internal logic for partial withdrawals. Should exit positions as efficiently as possible.
-    ///      Should ideally use idle want in the strategy before attempting to exit strategy positions.
+    /// @dev Internal logic for partial withdrawals. Should exit positions as efficiently as
+    /// possible.
+    ///      Should ideally use idle want in the strategy before attempting to exit strategy
+    /// positions.
     /// @param _amount Amount of want token to be withdrawn from the strategy.
     /// @return Withdrawn amount from the strategy.
     function _withdrawSome(uint256 _amount) internal virtual returns (uint256);
@@ -368,7 +384,8 @@ abstract contract BaseStrategy is PausableUpgradeable {
     ///         This can only be called by keeper or governance.
     ///         Note that harvests don't work when the strategy is paused.
     /// @dev Returns can be reinvested into positions, or distributed in another fashion.
-    /// @return harvested An array of `TokenAmount` containing the address and amount harvested for each token.
+    /// @return harvested An array of `TokenAmount` containing the address and amount harvested for
+    /// each token.
     function harvest() external whenNotPaused returns (TokenAmount[] memory harvested) {
         _onlyAuthorizedActors();
         return _harvest();
@@ -383,7 +400,8 @@ abstract contract BaseStrategy is PausableUpgradeable {
     ///         This can only be called by keeper or governance.
     ///         Note that tend doesn't work when the strategy is paused.
     /// @dev Is only called by the keeper when `isTendable` is true.
-    /// @return tended An array of `TokenAmount` containing the address and amount tended for each token.
+    /// @return tended An array of `TokenAmount` containing the address and amount tended for each
+    /// token.
     function tend() external whenNotPaused returns (TokenAmount[] memory tended) {
         _onlyAuthorizedActors();
 
@@ -405,7 +423,8 @@ abstract contract BaseStrategy is PausableUpgradeable {
 
     /// @notice Gives the total amount of pending rewards accrued for each token.
     /// @dev Should take into account all reward tokens.
-    /// @return rewards An array of `TokenAmount` containing the address and amount of each reward token.
+    /// @return rewards An array of `TokenAmount` containing the address and amount of each reward
+    /// token.
     function balanceOfRewards() external view virtual returns (TokenAmount[] memory rewards);
 
     uint256[49] private __gap;

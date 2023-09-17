@@ -38,7 +38,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
 
     IERC20Upgradeable public token; // Token used for deposits
 
-    bool public pausedDeposit; // false by default Allows to only block deposits, use pause for the normal pause state
+    bool public pausedDeposit; // false by default Allows to only block deposits, use pause for the
+        // normal pause state
 
     address public strategy; // address of the strategy connected to the vault
     address public guardian; // guardian of vault and strategy
@@ -62,14 +63,16 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     uint256 public performanceFeeGovernance; // Perf fee sent to `treasury`
     uint256 public performanceFeeStrategist; // Perf fee sent to `strategist`
     uint256 public withdrawalFee; // fee issued to `treasury` on withdrawal
-    uint256 public managementFee; // fee issued to `treasury` on report (typically on harvest, but only if strat is
+    uint256 public managementFee; // fee issued to `treasury` on report (typically on harvest, but
+        // only if strat is
         // autocompounding)
 
     uint256 public maxPerformanceFee; // maximum allowed performance fees
     uint256 public maxWithdrawalFee; // maximum allowed withdrawal fees
     uint256 public maxManagementFee; // maximum allowed management fees
 
-    uint256 public toEarnBps; // NOTE: in BPS, minimum amount of token to deposit into strategy when earn is called
+    uint256 public toEarnBps; // NOTE: in BPS, minimum amount of token to deposit into strategy when
+        // earn is called
 
     /// ===== Constants ====
 
@@ -77,7 +80,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     uint256 public constant SECS_PER_YEAR = 31_556_952; // 365.2425 days
 
     uint256 public constant WITHDRAWAL_FEE_HARD_CAP = 200; // Never higher than 2%
-    uint256 public constant PERFORMANCE_FEE_HARD_CAP = 3000; // Never higher than 30% // 30% maximum performance fee //
+    uint256 public constant PERFORMANCE_FEE_HARD_CAP = 3000; // Never higher than 30% // 30% maximum
+        // performance fee //
         // We usually do 20, so this is insanely high already
     uint256 public constant MANAGEMENT_FEE_HARD_CAP = 200; // Never higher than 2%
 
@@ -122,7 +126,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     event PauseDeposits(address indexed pausedBy);
     event UnpauseDeposits(address indexed pausedBy);
 
-    /// @notice Initializes the Sett. Can only be called once, ideally when the contract is deployed.
+    /// @notice Initializes the Sett. Can only be called once, ideally when the contract is
+    /// deployed.
     /// @param _token Address of the token that can be deposited into the sett.
     /// @param _governance Address authorized as governance.
     /// @param _keeper Address authorized as keeper.
@@ -194,7 +199,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         keeper = _keeper;
         guardian = _guardian;
 
-        lastHarvestedAt = block.timestamp; // setting initial value to the time when the vault was deployed
+        lastHarvestedAt = block.timestamp; // setting initial value to the time when the vault was
+            // deployed
 
         performanceFeeGovernance = _feeConfig[0];
         performanceFeeStrategist = _feeConfig[1];
@@ -204,7 +210,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         maxWithdrawalFee = WITHDRAWAL_FEE_HARD_CAP; // 2% maximum withdrawal fee
         maxManagementFee = MANAGEMENT_FEE_HARD_CAP; // 2% maximum management fee
 
-        toEarnBps = 9500; // initial value of toEarnBps // 95% is invested to the strategy, 5% for cheap withdrawals
+        toEarnBps = 9500; // initial value of toEarnBps // 95% is invested to the strategy, 5% for
+            // cheap withdrawals
     }
     /// ===== Modifiers ====
 
@@ -251,7 +258,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// ===== Public Actions =====
 
     /// @notice Deposits `_amount` tokens, issuing shares.
-    ///         Note that deposits are not accepted when the Sett is paused or when `pausedDeposit` is true.
+    ///         Note that deposits are not accepted when the Sett is paused or when `pausedDeposit`
+    /// is true.
     /// @dev See `_depositFor` for details on how deposit is implemented.
     /// @param _amount Quantity of tokens to deposit.
     function deposit(uint256 _amount) external whenNotPaused {
@@ -276,8 +284,10 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// ===== Permissioned Actions: Strategy =====
 
     /// @notice Used by the strategy to report a harvest to the sett.
-    ///         Issues shares for the strategist and treasury based on the performance fees and harvested amount.
-    ///         Issues shares for the treasury based on the management fee and the time elapsed since last harvest.
+    ///         Issues shares for the strategist and treasury based on the performance fees and
+    /// harvested amount.
+    ///         Issues shares for the treasury based on the management fee and the time elapsed
+    /// since last harvest.
     ///         Updates harvest variables for on-chain APR tracking.
     ///         This can only be called by the strategy.
     /// @dev This implicitly trusts that the strategy reports the correct amount.
@@ -287,7 +297,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         _onlyStrategy();
 
         uint256 harvestTime = block.timestamp;
-        uint256 assetsAtHarvest = balance().sub(_harvestedAmount); // Must be less than or equal or revert
+        uint256 assetsAtHarvest = balance().sub(_harvestedAmount); // Must be less than or equal or
+            // revert
 
         _handleFees(_harvestedAmount, harvestTime);
 
@@ -314,7 +325,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Used by the strategy to report harvest of additional tokens to the sett.
-    ///         Charges performance fees on the additional tokens and transfers fees to treasury and strategist.
+    ///         Charges performance fees on the additional tokens and transfers fees to treasury and
+    /// strategist.
     ///         TODO: The remaining amount is sent to where?
     ///         Updates harvest variables for on-chain APR tracking.
     ///         This can only be called by the strategy.
@@ -371,7 +383,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     ///         Note that this can only be called when sett is not paused.
     /// @dev This is a rug vector, pay extremely close attention to the next strategy being set.
     ///      Changing the strategy should happen only via timelock.
-    ///      This function must not be callable when the sett is paused as this would force depositors into a strategy
+    ///      This function must not be callable when the sett is paused as this would force
+    /// depositors into a strategy
     /// they may not want to use.
     /// @param _strategy Address of new strategy.
     function setStrategy(address _strategy) external whenNotPaused {
@@ -451,7 +464,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Sets the withdrawal fee charged by the Sett.
-    ///         The fee is taken at the time of withdrawals in the underlying token which is then used to issue new
+    ///         The fee is taken at the time of withdrawals in the underlying token which is then
+    /// used to issue new
     /// shares for the treasury.
     ///         The new withdrawal fee should be less than `maxWithdrawalFee`.
     ///         This can be called by either governance or strategist.
@@ -465,11 +479,13 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Sets the performance fee taken by the strategist on the harvests.
-    ///         The fee is taken at the time of harvest reporting for both the underlying token and additional tokens.
+    ///         The fee is taken at the time of harvest reporting for both the underlying token and
+    /// additional tokens.
     ///         For the underlying token, the fee is used to issue new shares for the strategist.
     ///         The new performance fee should be less than `maxPerformanceFee`.
     ///         This can be called by either governance or strategist.
-    /// @dev See `reportHarvest` and `reportAdditionalToken` to see how performance fees are charged.
+    /// @dev See `reportHarvest` and `reportAdditionalToken` to see how performance fees are
+    /// charged.
     /// @param _performanceFeeStrategist The new performance fee.
     function setPerformanceFeeStrategist(uint256 _performanceFeeStrategist) external whenNotPaused {
         _onlyGovernanceOrStrategist();
@@ -479,11 +495,13 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Sets the performance fee taken by the treasury on the harvests.
-    ///         The fee is taken at the time of harvest reporting for both the underlying token and additional tokens.
+    ///         The fee is taken at the time of harvest reporting for both the underlying token and
+    /// additional tokens.
     ///         For the underlying token, the fee is used to issue new shares for the treasury.
     ///         The new performance fee should be less than `maxPerformanceFee`.
     ///         This can be called by either governance or strategist.
-    /// @dev See `reportHarvest` and `reportAdditionalToken` to see how performance fees are charged.
+    /// @dev See `reportHarvest` and `reportAdditionalToken` to see how performance fees are
+    /// charged.
     /// @param _performanceFeeGovernance The new performance fee.
     function setPerformanceFeeGovernance(uint256 _performanceFeeGovernance) external whenNotPaused {
         _onlyGovernanceOrStrategist();
@@ -493,7 +511,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Sets the management fee taken by the treasury on the AUM in the sett.
-    ///         The fee is calculated at the time of `reportHarvest` and is used to issue new shares for the treasury.
+    ///         The fee is calculated at the time of `reportHarvest` and is used to issue new shares
+    /// for the treasury.
     ///         The new management fee should be less than `maxManagementFee`.
     ///         This can be called by either governance or strategist.
     /// @dev See `_handleFees` to see how the management fee is calculated.
@@ -515,7 +534,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         IStrategy(strategy).withdrawToVault();
     }
 
-    /// @notice Sends balance of any extra token earned by the strategy (from airdrops, donations etc.)
+    /// @notice Sends balance of any extra token earned by the strategy (from airdrops, donations
+    /// etc.)
     ///         The `_token` should be different from any tokens managed by the strategy.
     ///         This can only be called by either strategist or governance.
     /// @dev See `BaseStrategy.emitNonProtectedToken` for details.
@@ -526,7 +546,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         IStrategy(strategy).emitNonProtectedToken(_token);
     }
 
-    /// @notice Sweeps the balance of an extra token from the vault and strategy and sends it to governance.
+    /// @notice Sweeps the balance of an extra token from the vault and strategy and sends it to
+    /// governance.
     ///         The `_token` should be different from any tokens managed by the strategy.
     ///         This can only be called by either strategist or governance.
     /// @dev Sweeping doesn't take any fee.
@@ -546,7 +567,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     ///         The strategy then uses the amount for yield-generating activities.
     ///         This can be called by either the keeper or governance.
     ///         Note that earn cannot be called when deposits are paused.
-    /// @dev Pause is enforced at the Strategy level (this allows to still earn yield when the Vault is paused)
+    /// @dev Pause is enforced at the Strategy level (this allows to still earn yield when the Vault
+    /// is paused)
     function earn() external {
         require(!pausedDeposit, "pausedDeposit"); // dev: deposits are paused, we don't earn as well
         _onlyAuthorizedActors();
@@ -591,7 +613,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// @notice Deposits `_amount` tokens, issuing shares to `recipient`.
     ///         Note that deposits are not accepted when `pausedDeposit` is true.
     /// @dev This is the actual deposit operation.
-    ///      Deposits are based on the realized value of underlying assets between Sett & associated Strategy
+    ///      Deposits are based on the realized value of underlying assets between Sett & associated
+    /// Strategy
     /// @param _recipient Address to issue the Sett shares to.
     /// @param _amount Quantity of tokens to deposit.
     function _depositFor(address _recipient, uint256 _amount) internal nonReentrant {
@@ -608,7 +631,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
 
     /// @notice Redeems `_shares` for an appropriate amount of tokens.
     /// @dev This is the actual withdraw operation.
-    ///      Withdraws from strategy positions if sett doesn't contain enough tokens to process the withdrawal.
+    ///      Withdraws from strategy positions if sett doesn't contain enough tokens to process the
+    /// withdrawal.
     ///      Calculates withdrawal fees and issues corresponding shares to treasury.
     ///      No rebalance implementation for lower fees and faster swaps
     /// @param _shares Quantity of shares to redeem.
@@ -634,7 +658,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         // Send funds to user
         token.safeTransfer(msg.sender, r.sub(_fee));
 
-        // After you burned the shares, and you have sent the funds, adding here is equivalent to depositing
+        // After you burned the shares, and you have sent the funds, adding here is equivalent to
+        // depositing
         // Process withdrawal fee
         if (_fee > 0) {
             address cachedTreasury = treasury;
@@ -655,7 +680,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         return fee;
     }
 
-    /// @dev Helper function to calculate governance and strategist performance fees. Make sure to use it to get paid!
+    /// @dev Helper function to calculate governance and strategist performance fees. Make sure to
+    /// use it to get paid!
     /// @param _amount Amount to calculate fee on.
     /// @return Tuple containing amount of (governance, strategist) fees to take.
     function _calculatePerformanceFee(uint256 _amount) internal view returns (uint256, uint256) {
@@ -666,7 +692,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         return (governancePerformanceFee, strategistPerformanceFee);
     }
 
-    /// @dev Helper function to issue shares to `recipient` based on an input `_amount` and `_pool` size.
+    /// @dev Helper function to issue shares to `recipient` based on an input `_amount` and `_pool`
+    /// size.
     /// @param recipient Address to issue shares to.
     /// @param _amount Amount to issue shares on.
     /// @param _pool Pool size to use while calculating amount of shares to mint.
@@ -683,14 +710,16 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         }
     }
 
-    /// @dev Helper function that issues shares based on performance and management fee when a harvest is reported.
+    /// @dev Helper function that issues shares based on performance and management fee when a
+    /// harvest is reported.
     /// @param _harvestedAmount The harvested amount to take fee on.
     /// @param harvestTime Time of harvest (block.timestamp).
     function _handleFees(uint256 _harvestedAmount, uint256 harvestTime) internal {
         (uint256 feeGovernance, uint256 feeStrategist) = _calculatePerformanceFee(_harvestedAmount);
         uint256 duration = harvestTime.sub(lastHarvestedAt);
 
-        // Management fee is calculated against the assets before harvest, to make it fair to depositors
+        // Management fee is calculated against the assets before harvest, to make it fair to
+        // depositors
         uint256 management_fee = managementFee > 0
             ? managementFee.mul(balance().sub(_harvestedAmount)).mul(duration).div(SECS_PER_YEAR).div(MAX_BPS)
             : 0;

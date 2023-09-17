@@ -38,7 +38,8 @@ interface IAuraLocker {
 
     function lastTimeRewardApplicable(address _rewardsToken) external view returns (uint256);
 
-    //BOOSTED balance of an account which only includes properly locked tokens as of the most recent eligible epoch
+    //BOOSTED balance of an account which only includes properly locked tokens as of the most recent
+    // eligible epoch
     function balanceOf(address _user) external view returns (uint256 amount);
 
     function balanceAtEpochOf(uint256 _epoch, address _user) external view returns (uint256 amount);
