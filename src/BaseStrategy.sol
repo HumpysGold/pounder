@@ -112,7 +112,8 @@ abstract contract BaseStrategy is PausableUpgradeable {
     }
 
     /// @notice Gives the total balance of want managed by the strategy.
-    ///         This includes all want deposited to active strategy positions as well as any idle want in the strategy.
+    ///         This includes all want deposited to active strategy positions as well as any idle
+    /// want in the strategy.
     /// @return Total balance of want managed by the strategy.
     function balanceOf() external view returns (uint256) {
         return balanceOfWant().add(balanceOfPool());
@@ -169,9 +170,9 @@ abstract contract BaseStrategy is PausableUpgradeable {
     /// ===== Permissioned Actions: Governance =====
 
     /// @notice Sets the max withdrawal deviation (percentage loss) that is acceptable to the strategy.
-    ///         This can only be called by governance.
+    /// This can only be called by governance.
     /// @dev This is used as a slippage check against the actual funds withdrawn from strategy positions.
-    ///      See `withdraw`.
+    /// See `withdraw`.
     function setWithdrawalMaxDeviationThreshold(uint256 _threshold) external {
         _onlyGovernance();
         require(_threshold <= MAX_BPS, "_threshold should be <= MAX_BPS");
@@ -220,7 +221,7 @@ abstract contract BaseStrategy is PausableUpgradeable {
     /// @notice Withdraw partial funds from the strategy to the vault, unrolling from strategy positions as necessary.
     ///         This can only be called by the vault.
     ///         Note that withdraws don't work when the strategy is paused.
-    /// @dev If the strategy fails to recover sufficient funds (defined by `withdrawalMaxDeviationThreshold`),
+    /// @dev If the strategy fails to recover sufficient funds (defined by`withdrawalMaxDeviationThreshold`),
     ///      the withdrawal would fail so that this unexpected behavior can be investigated.
     /// @param _amount Amount of funds required to be withdrawn.
     function withdraw(uint256 _amount) external whenNotPaused {
@@ -232,11 +233,13 @@ abstract contract BaseStrategy is PausableUpgradeable {
         uint256 _postWithdraw = IERC20Upgradeable(want).balanceOf(address(this));
 
         // Sanity check: Ensure we were able to retrieve sufficient want from strategy positions
-        // If we end up with less than the amount requested, make sure it does not deviate beyond a maximum threshold
+        // If we end up with less than the amount requested, make sure it does not deviate beyond a
+        // maximum threshold
         if (_postWithdraw < _amount) {
             uint256 diff = _diff(_amount, _postWithdraw);
 
-            // Require that difference between expected and actual values is less than the deviation threshold
+            // Require that difference between expected and actual values is less than the deviation
+            // threshold
             // percentage
             require(
                 diff <= _amount.mul(withdrawalMaxDeviationThreshold).div(MAX_BPS),
@@ -390,8 +393,7 @@ abstract contract BaseStrategy is PausableUpgradeable {
         return _tend();
     }
 
-    /// @dev Virtual function that should be overridden with the logic for tending.
-    ///      Also see `tend`.
+    /// @dev Virtual function that should be overridden with the logic for tending. Also see `tend`.
     function _tend() internal virtual returns (TokenAmount[] memory tended);
 
     /// @notice Fetches the name of the strategy.

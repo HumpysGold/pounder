@@ -354,7 +354,8 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         }
     }
 
-    /// @notice Claims rewards from Paladin using merkle proofs, sell everything to AURA and report to vault
+    /// @notice Claims rewards from Paladin using merkle proofs, sell everything to AURA and report
+    /// to vault
     function harvestPaladinDelegate(IExtraRewardsMultiMerkle.ClaimParams[] calldata claims)
         external
         returns (TokenAmount[] memory harvested)

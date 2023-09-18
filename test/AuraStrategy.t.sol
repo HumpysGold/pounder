@@ -2,51 +2,20 @@
 pragma solidity 0.8.20;
 
 import "./BaseFixture.sol";
+import { IExtraRewardsMultiMerkle } from "../src/interfaces/IExtraRewardsMultiMerkle.sol";
 
 /// @dev Basic tests for the Vault contract
 contract TestAuraStrategy is BaseFixture {
-    address public constant LOCKER_REWARDS_DISTRIBUTOR = address(0xd9e863B7317a66fe0a4d2834910f604Fd6F89C6c);
-
     using stdStorage for StdStorage;
-
-    uint256 public AMOUNT_OF_USERS = 10;
-
-    address payable[] public strategyUsers;
 
     function setUp() public override {
         super.setUp();
         strategyUsers = utils.createUsers(AMOUNT_OF_USERS);
     }
 
-    /// @dev Helper function to deposit, earn all AURA from vault into strategy
-    function _setupStrategy(uint256 _depositAmount) internal {
-        for (uint256 i = 0; i < AMOUNT_OF_USERS; i++) {
-            // Give alice some AURA:
-            setStorage(strategyUsers[i], AURA.balanceOf.selector, address(AURA), _depositAmount);
-            vm.startPrank(strategyUsers[i]);
-            // Approve the vault to spend AURA:
-            AURA.approve(address(vault), _depositAmount);
-            vault.deposit(_depositAmount);
-            vm.stopPrank();
-        }
-
-        vm.prank(governance);
-        vault.earn();
-    }
-
-    /// @dev Helper function to distribute AURA BAL rewards to Locker so strategy has auraBAL rewards to harvest
-    function _distributeAuraBalRewards(uint256 _reward) internal {
-        setStorage(
-            LOCKER_REWARDS_DISTRIBUTOR,
-            auraStrategy.AURABAL().balanceOf.selector,
-            address(auraStrategy.AURABAL()),
-            100_000_000e18
-        );
-        vm.startPrank(LOCKER_REWARDS_DISTRIBUTOR);
-        auraStrategy.LOCKER().queueNewRewards(address(auraStrategy.AURABAL()), _reward);
-        vm.stopPrank();
-    }
-
+    /////////////////////////////////////////////////////////////////////////////
+    ///////                  auraBAL rewards harvest                        /////
+    /////////////////////////////////////////////////////////////////////////////
     function testHarvestWithAdditionalRewards(uint96 _depositPerUser, uint96 _auraRewards) public {
         vm.assume(_depositPerUser > 10e18);
         vm.assume(_depositPerUser < 100_000e18);
@@ -80,7 +49,8 @@ contract TestAuraStrategy is BaseFixture {
         vm.stopPrank();
     }
 
-    /// @dev Same as above, with the only difference that no additional rewards are NOT distributed to aura locker
+    /// @dev Same as above, with the only difference that no additional rewards are NOT distributed
+    /// to aura locker
     function testHarvestWithoutAdditionalRewards(uint96 _depositPerUser) public {
         vm.assume(_depositPerUser > 10e18);
         vm.assume(_depositPerUser < 100_000e18);
@@ -100,7 +70,8 @@ contract TestAuraStrategy is BaseFixture {
         assertGt(auraStrategy.balanceOfPool(), balanceOfPoolSnapshot);
     }
 
-    /// @dev Case when vault invested 100% of AURA into strategy and it gets locked, so users cannot withdraw
+    /// @dev Case when vault invested 100% of AURA into strategy and it gets locked, so users cannot
+    /// withdraw
     function testHarvestFullInvested(uint96 _depositPerUser) public {
         vm.assume(_depositPerUser > 10e18);
         vm.assume(_depositPerUser < 100_000e18);
@@ -119,7 +90,8 @@ contract TestAuraStrategy is BaseFixture {
         vault.withdrawAll();
     }
 
-    /// @dev Case opposite to above, when locks expires, users can withdraw from strategy that will unlock some AURA
+    /// @dev Case opposite to above, when locks expires, users can withdraw from strategy that will
+    /// unlock some AURA
     function testHarvestFullInvestedButLockExpired(uint96 _depositPerUser) public {
         vm.assume(_depositPerUser > 10e18);
         vm.assume(_depositPerUser < 100_000e18);
