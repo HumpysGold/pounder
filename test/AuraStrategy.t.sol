@@ -4,59 +4,13 @@ pragma solidity 0.8.20;
 import "./BaseFixture.sol";
 import { IExtraRewardsMultiMerkle } from "../src/interfaces/IExtraRewardsMultiMerkle.sol";
 
-interface IAuraStrategy {
-    function governance() external view returns (address);
-    function want() external view returns (address);
-    function admin() external view returns (address);
-}
-
 /// @dev Basic tests for the Vault contract
 contract TestAuraStrategy is BaseFixture {
-    address public constant LOCKER_REWARDS_DISTRIBUTOR = address(0xd9e863B7317a66fe0a4d2834910f604Fd6F89C6c);
-    // existing recipient on mainnet tree root to simulate Paladin rewards
-    address payable public CLAIMER = payable(0x99AfD53f807766A8B98400B0C785E500c041F32B);
-    address payable public CLAIMER_MULTI = payable(0x19124Ee4114B0444535eE57b30118CBD1Ca11eDA);
-    address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
     using stdStorage for StdStorage;
-
-    uint256 public AMOUNT_OF_USERS = 10;
-
-    address payable[] public strategyUsers;
 
     function setUp() public override {
         super.setUp();
         strategyUsers = utils.createUsers(AMOUNT_OF_USERS);
-    }
-
-    /// @dev Helper function to deposit, earn all AURA from vault into strategy
-    function _setupStrategy(uint256 _depositAmount) internal {
-        for (uint256 i = 0; i < AMOUNT_OF_USERS; i++) {
-            // Give alice some AURA:
-            setStorage(strategyUsers[i], AURA.balanceOf.selector, address(AURA), _depositAmount);
-            vm.startPrank(strategyUsers[i]);
-            // Approve the vault to spend AURA:
-            AURA.approve(address(vault), _depositAmount);
-            vault.deposit(_depositAmount);
-            vm.stopPrank();
-        }
-
-        vm.prank(governance);
-        vault.earn();
-    }
-
-    /// @dev Helper function to distribute AURA BAL rewards to Locker so strategy has auraBAL
-    /// rewards to harvest
-    function _distributeAuraBalRewards(uint256 _reward) internal {
-        setStorage(
-            LOCKER_REWARDS_DISTRIBUTOR,
-            auraStrategy.AURABAL().balanceOf.selector,
-            address(auraStrategy.AURABAL()),
-            100_000_000e18
-        );
-        vm.startPrank(LOCKER_REWARDS_DISTRIBUTOR);
-        auraStrategy.LOCKER().queueNewRewards(address(auraStrategy.AURABAL()), _reward);
-        vm.stopPrank();
     }
 
     /////////////////////////////////////////////////////////////////////////////
@@ -155,36 +109,6 @@ contract TestAuraStrategy is BaseFixture {
         vault.withdrawAll();
         // Make sure user got more AURA than he deposited
         assertGt(AURA.balanceOf(strategyUsers[0]), _depositPerUser);
-    }
-
-    /////////////////////////////////////////////////////////////////////////////
-    ///////                  Paladin rewards harvest                        /////
-    /////////////////////////////////////////////////////////////////////////////
-    function testHarvestPaladinHappy(uint96 _depositPerUser) public {
-        vm.assume(_depositPerUser > 10e18);
-        vm.assume(_depositPerUser < 100_000e18);
-        _setupStrategy(_depositPerUser);
-
-        // inject bytecode for mirroring of Aura strategy behaviour
-        vm.etch(CLAIMER, address(auraStrategy).code);
-
-        // enforces storage slots of rewards sc's
-        vm.prank(IAuraStrategy(CLAIMER).admin());
-        //
-        // https://etherscan.io/tx/0x4e7e0ad13c10ab0a1e6f59c8238f8641816a551d15311d00e5b13b53d39bf714
-        bytes32[] memory proof = new bytes32[](6);
-        proof[0] = 0x85022fb07bc9f312e14b9aa9a98643e9a7e54f07b22238a8900ee68a0ce068e9;
-        proof[1] = 0x8dd801e563622ae0a2a973e8d151f209f076f833c47642c13ebcfaef49b0a06b;
-        proof[2] = 0x30036b1d84d1f75b0f1970d021941d0624b809019117f8a1dc6559bbee52f8de;
-        proof[3] = 0x68e676fedeb6750f127f52d6dddc0ff27e4c1e5e77cb5da1c774496f98332339;
-        proof[4] = 0x37853cce97340c343960af4aa25917754e858fb192ef3f2308c46986d61a7ea5;
-        proof[5] = 0xcffdd8c5e040fe25f4d858f7bf9c91d95d3f63cc0ed3b22b4135e3381a5c65cf;
-        IExtraRewardsMultiMerkle.ClaimParams[] memory paladinClaimParams = new IExtraRewardsMultiMerkle.ClaimParams[](1);
-        paladinClaimParams[0] =
-            IExtraRewardsMultiMerkle.ClaimParams({ token: USDC, index: 37, amount: 333_826_841, merkleProof: proof });
-
-        //        vm.prank(AuraStrategy(CLAIMER).governance());
-        AuraStrategy(CLAIMER).harvestPaladinDelegate(paladinClaimParams);
     }
 
     /////////////////////////////////////////////////////////////////////////////

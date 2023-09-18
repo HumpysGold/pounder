@@ -13,6 +13,7 @@ contract BaseFixture is Test {
     using stdStorage for StdStorage;
 
     ERC20 public AURA = ERC20(address(0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF));
+    address public constant LOCKER_REWARDS_DISTRIBUTOR = address(0xd9e863B7317a66fe0a4d2834910f604Fd6F89C6c);
 
     Utils internal utils;
     address payable[] internal users;
@@ -31,10 +32,42 @@ contract BaseFixture is Test {
     Vault public vault;
 
     uint256 public constant BIPS = 10_000;
+    uint256 public AMOUNT_OF_USERS = 10;
+    address payable[] public strategyUsers;
 
     function setStorage(address _user, bytes4 _selector, address _contract, uint256 value) public {
         uint256 slot = stdstore.target(_contract).sig(_selector).with_key(_user).find();
         vm.store(_contract, bytes32(slot), bytes32(value));
+    }
+
+    /// @dev Helper function to deposit, earn all AURA from vault into strategy
+    function _setupStrategy(uint256 _depositAmount) internal {
+        for (uint256 i = 0; i < AMOUNT_OF_USERS; i++) {
+            // Give alice some AURA:
+            setStorage(strategyUsers[i], AURA.balanceOf.selector, address(AURA), _depositAmount);
+            vm.startPrank(strategyUsers[i]);
+            // Approve the vault to spend AURA:
+            AURA.approve(address(vault), _depositAmount);
+            vault.deposit(_depositAmount);
+            vm.stopPrank();
+        }
+
+        vm.prank(governance);
+        vault.earn();
+    }
+
+    /// @dev Helper function to distribute AURA BAL rewards to Locker so strategy has auraBAL
+    /// rewards to harvest
+    function _distributeAuraBalRewards(uint256 _reward) internal {
+        setStorage(
+            LOCKER_REWARDS_DISTRIBUTOR,
+            auraStrategy.AURABAL().balanceOf.selector,
+            address(auraStrategy.AURABAL()),
+            100_000_000e18
+        );
+        vm.startPrank(LOCKER_REWARDS_DISTRIBUTOR);
+        auraStrategy.LOCKER().queueNewRewards(address(auraStrategy.AURABAL()), _reward);
+        vm.stopPrank();
     }
 
     function setUp() public virtual {

@@ -19,6 +19,7 @@ import { IWeth } from "./interfaces/IWeth.sol";
 import { IDelegateRegistry } from "./interfaces/IDelegateRegistry.sol";
 import { IExtraRewardsMultiMerkle } from "./interfaces/IExtraRewardsMultiMerkle.sol";
 import { IUniswapV2Router } from "./interfaces/IUniswapV2Router.sol";
+import { console2 } from "../lib/forge-std/src/console2.sol";
 
 contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
