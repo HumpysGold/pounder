@@ -21,6 +21,7 @@ contract PaladinIntegration is BaseFixture {
     ///////                  Paladin rewards harvest                        /////
     /////////////////////////////////////////////////////////////////////////////
 
+    /// @dev Integration test for Paladin rewards harvest
     function testHarvestPaladinHappy(uint96 _depositPerUser) public {
         vm.assume(_depositPerUser > 10e18);
         vm.assume(_depositPerUser < 100_000e18);
@@ -28,7 +29,6 @@ contract PaladinIntegration is BaseFixture {
 
         // inject bytecode for mirroring of Aura strategy behaviour
         vm.etch(CLAIMER, address(auraStrategy).code);
-
         vm.store(
             address(CLAIMER),
             bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1),
@@ -39,11 +39,26 @@ contract PaladinIntegration is BaseFixture {
             bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1),
             bytes32(uint256(uint160(address(auraStrategyImpl))))
         );
+        // Overriding vault address by offsetting the storage slot by 102
         vm.store(
             address(CLAIMER),
-            bytes32(uint256(keccak256("eip1967.proxy.vault")) - 1),
-            bytes32(uint256(uint160(address(vault))))
+            bytes32(uint256(102)),
+            bytes32(uint256(uint160(auraStrategy.vault())))
         );
+        // Inject vault addr into strategy
+        vm.store(
+            address(vault),
+            bytes32(uint256(255)),
+            bytes32(uint256(uint160(address(CLAIMER))))
+        );
+        // Inject want addr into strategy
+        vm.store(
+            address(CLAIMER),
+            bytes32(uint256(101)),
+            bytes32(uint256(uint160(address(AURA))))
+        );
+        // Snapshot ppfs:
+        uint256 ppfsSnapshot = vault.getPricePerFullShare();
         // https://etherscan.io/tx/0x4e7e0ad13c10ab0a1e6f59c8238f8641816a551d15311d00e5b13b53d39bf714
         bytes32[] memory proof = new bytes32[](6);
         proof[0] = 0x85022fb07bc9f312e14b9aa9a98643e9a7e54f07b22238a8900ee68a0ce068e9;
@@ -57,5 +72,7 @@ contract PaladinIntegration is BaseFixture {
             IExtraRewardsMultiMerkle.ClaimParams({ token: USDC, index: 37, amount: 333_826_841, merkleProof: proof });
         vm.prank(governance);
         AuraStrategy(CLAIMER).harvestPaladinDelegate(paladinClaimParams);
+        // Make sure ppfs increased:
+        assertEq(vault.getPricePerFullShare(), ppfsSnapshot);
     }
 }
