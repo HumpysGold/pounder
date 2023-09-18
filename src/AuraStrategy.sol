@@ -19,7 +19,6 @@ import { IWeth } from "./interfaces/IWeth.sol";
 import { IDelegateRegistry } from "./interfaces/IDelegateRegistry.sol";
 import { IExtraRewardsMultiMerkle } from "./interfaces/IExtraRewardsMultiMerkle.sol";
 import { IUniswapV2Router } from "./interfaces/IUniswapV2Router.sol";
-import { console2 } from "../lib/forge-std/src/console2.sol";
 
 contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -105,8 +104,7 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         // For slippage check
         auraBalToBalEthBptMinOutBps = 9500;
 
-        // Process locks on reinvest is best left false as gov can figure out if they need to save
-        // that gas
+        // Process locks on reinvest is best left false as gov can figure out if they need to save that gas
     }
 
     /// ===== Extra Functions =====
@@ -225,8 +223,7 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     }
 
     /// @dev Return a list of protected tokens
-    /// @notice It's very important all tokens that are meant to be in the strategy to be marked as
-    /// protected
+    /// @notice It's very important all tokens that are meant to be in the strategy to be marked as protected
     /// @notice this provides security guarantees to the depositors they can't be sweeped away
     function getProtectedTokens() public view virtual override returns (address[] memory) {
         address[] memory protectedTokens = new address[](2);
@@ -279,8 +276,7 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         }
 
         if (withdrawalSafetyCheck) {
-            require(max >= _amount.mul(9980).div(MAX_BPS), "Withdrawal Safety Check"); // 20 BP of
-                // slippage
+            require(max >= _amount.mul(9980).div(MAX_BPS), "Withdrawal Safety Check"); // 20 BP of slippage
         }
 
         if (_amount > max) {
@@ -451,8 +447,7 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     }
 
     /// @dev Send all available Aura to the Vault
-    /// @notice you can do this so you can earn again (re-lock), or just to add to the redemption
-    /// pool
+    /// @notice you can do this so you can earn again (re-lock), or just to add to the redemption pool
     function manualSendAuraToVault() external whenNotPaused {
         _onlyGovernance();
         uint256 auraAmount = balanceOfWant();

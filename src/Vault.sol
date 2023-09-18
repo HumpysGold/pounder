@@ -210,8 +210,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         maxWithdrawalFee = WITHDRAWAL_FEE_HARD_CAP; // 2% maximum withdrawal fee
         maxManagementFee = MANAGEMENT_FEE_HARD_CAP; // 2% maximum management fee
 
-        toEarnBps = 9500; // initial value of toEarnBps // 95% is invested to the strategy, 5% for
-            // cheap withdrawals
+        toEarnBps = 9500; // initial value of toEarnBps // 95% is invested to the strategy, 5% for cheap withdrawals
     }
     /// ===== Modifiers ====
 
@@ -284,10 +283,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// ===== Permissioned Actions: Strategy =====
 
     /// @notice Used by the strategy to report a harvest to the sett.
-    ///         Issues shares for the strategist and treasury based on the performance fees and
-    /// harvested amount.
-    ///         Issues shares for the treasury based on the management fee and the time elapsed
-    /// since last harvest.
+    ///         Issues shares for the strategist and treasury based on the performance fees and harvested amount.
+    ///         Issues shares for the treasury based on the management fee and the time elapsed since last harvest.
     ///         Updates harvest variables for on-chain APR tracking.
     ///         This can only be called by the strategy.
     /// @dev This implicitly trusts that the strategy reports the correct amount.
@@ -297,8 +294,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         _onlyStrategy();
 
         uint256 harvestTime = block.timestamp;
-        uint256 assetsAtHarvest = balance().sub(_harvestedAmount); // Must be less than or equal or
-            // revert
+        uint256 assetsAtHarvest = balance().sub(_harvestedAmount); // Must be less than or equal or revert
 
         _handleFees(_harvestedAmount, harvestTime);
 
@@ -325,8 +321,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Used by the strategy to report harvest of additional tokens to the sett.
-    ///         Charges performance fees on the additional tokens and transfers fees to treasury and
-    /// strategist.
+    ///         Charges performance fees on the additional tokens and transfers fees to treasury and strategist.
     ///         TODO: The remaining amount is sent to where?
     ///         Updates harvest variables for on-chain APR tracking.
     ///         This can only be called by the strategy.
@@ -383,9 +378,8 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     ///         Note that this can only be called when sett is not paused.
     /// @dev This is a rug vector, pay extremely close attention to the next strategy being set.
     ///      Changing the strategy should happen only via timelock.
-    ///      This function must not be callable when the sett is paused as this would force
-    /// depositors into a strategy
-    /// they may not want to use.
+    ///      This function must not be callable when the sett is paused as this would force depositors into a strategy
+    ///      they may not want to use.
     /// @param _strategy Address of new strategy.
     function setStrategy(address _strategy) external whenNotPaused {
         _onlyGovernance();
@@ -511,8 +505,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     }
 
     /// @notice Sets the management fee taken by the treasury on the AUM in the sett.
-    ///         The fee is calculated at the time of `reportHarvest` and is used to issue new shares
-    /// for the treasury.
+    ///         The fee is calculated at the time of `reportHarvest` and is used to issue new shares for the treasury.
     ///         The new management fee should be less than `maxManagementFee`.
     ///         This can be called by either governance or strategist.
     /// @dev See `_handleFees` to see how the management fee is calculated.
@@ -534,8 +527,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         IStrategy(strategy).withdrawToVault();
     }
 
-    /// @notice Sends balance of any extra token earned by the strategy (from airdrops, donations
-    /// etc.)
+    /// @notice Sends balance of any extra token earned by the strategy (from airdrops, donations etc.)
     ///         The `_token` should be different from any tokens managed by the strategy.
     ///         This can only be called by either strategist or governance.
     /// @dev See `BaseStrategy.emitNonProtectedToken` for details.
@@ -613,8 +605,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     /// @notice Deposits `_amount` tokens, issuing shares to `recipient`.
     ///         Note that deposits are not accepted when `pausedDeposit` is true.
     /// @dev This is the actual deposit operation.
-    ///      Deposits are based on the realized value of underlying assets between Sett & associated
-    /// Strategy
+    ///      Deposits are based on the realized value of underlying assets between Sett & associated Strategy
     /// @param _recipient Address to issue the Sett shares to.
     /// @param _amount Quantity of tokens to deposit.
     function _depositFor(address _recipient, uint256 _amount) internal nonReentrant {
@@ -631,8 +622,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
 
     /// @notice Redeems `_shares` for an appropriate amount of tokens.
     /// @dev This is the actual withdraw operation.
-    ///      Withdraws from strategy positions if sett doesn't contain enough tokens to process the
-    /// withdrawal.
+    ///      Withdraws from strategy positions if sett doesn't contain enough tokens to process the withdrawal.
     ///      Calculates withdrawal fees and issues corresponding shares to treasury.
     ///      No rebalance implementation for lower fees and faster swaps
     /// @param _shares Quantity of shares to redeem.
@@ -658,8 +648,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         // Send funds to user
         token.safeTransfer(msg.sender, r.sub(_fee));
 
-        // After you burned the shares, and you have sent the funds, adding here is equivalent to
-        // depositing
+        // After you burned the shares, and you have sent the funds, adding here is equivalent to depositing
         // Process withdrawal fee
         if (_fee > 0) {
             address cachedTreasury = treasury;
@@ -680,8 +669,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         return fee;
     }
 
-    /// @dev Helper function to calculate governance and strategist performance fees. Make sure to
-    /// use it to get paid!
+    /// @dev Helper function to calculate governance and strategist performance fees. Make sure to use it to get paid!
     /// @param _amount Amount to calculate fee on.
     /// @return Tuple containing amount of (governance, strategist) fees to take.
     function _calculatePerformanceFee(uint256 _amount) internal view returns (uint256, uint256) {
@@ -692,8 +680,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         return (governancePerformanceFee, strategistPerformanceFee);
     }
 
-    /// @dev Helper function to issue shares to `recipient` based on an input `_amount` and `_pool`
-    /// size.
+    /// @dev Helper function to issue shares to `recipient` based on an input `_amount` and `_pool` size.
     /// @param recipient Address to issue shares to.
     /// @param _amount Amount to issue shares on.
     /// @param _pool Pool size to use while calculating amount of shares to mint.
@@ -710,8 +697,7 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         }
     }
 
-    /// @dev Helper function that issues shares based on performance and management fee when a
-    /// harvest is reported.
+    /// @dev Helper function that issues shares based on performance and management fee when a harvest is reported.
     /// @param _harvestedAmount The harvested amount to take fee on.
     /// @param harvestTime Time of harvest (block.timestamp).
     function _handleFees(uint256 _harvestedAmount, uint256 harvestTime) internal {

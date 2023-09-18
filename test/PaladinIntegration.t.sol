@@ -40,23 +40,11 @@ contract PaladinIntegration is BaseFixture {
             bytes32(uint256(uint160(address(auraStrategyImpl))))
         );
         // Overriding vault address by offsetting the storage slot by 102
-        vm.store(
-            address(CLAIMER),
-            bytes32(uint256(102)),
-            bytes32(uint256(uint160(auraStrategy.vault())))
-        );
+        vm.store(address(CLAIMER), bytes32(uint256(102)), bytes32(uint256(uint160(auraStrategy.vault()))));
         // Inject vault addr into strategy
-        vm.store(
-            address(vault),
-            bytes32(uint256(255)),
-            bytes32(uint256(uint160(address(CLAIMER))))
-        );
+        vm.store(address(vault), bytes32(uint256(255)), bytes32(uint256(uint160(address(CLAIMER)))));
         // Inject want addr into strategy
-        vm.store(
-            address(CLAIMER),
-            bytes32(uint256(101)),
-            bytes32(uint256(uint160(address(AURA))))
-        );
+        vm.store(address(CLAIMER), bytes32(uint256(101)), bytes32(uint256(uint160(address(AURA)))));
         // Snapshot ppfs:
         uint256 ppfsSnapshot = vault.getPricePerFullShare();
         // https://etherscan.io/tx/0x4e7e0ad13c10ab0a1e6f59c8238f8641816a551d15311d00e5b13b53d39bf714
@@ -73,6 +61,6 @@ contract PaladinIntegration is BaseFixture {
         vm.prank(governance);
         AuraStrategy(CLAIMER).harvestPaladinDelegate(paladinClaimParams);
         // Make sure ppfs increased:
-        assertEq(vault.getPricePerFullShare(), ppfsSnapshot);
+        assertGt(vault.getPricePerFullShare(), ppfsSnapshot);
     }
 }
