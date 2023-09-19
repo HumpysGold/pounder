@@ -29,9 +29,19 @@ contract TestAuraStrategy is BaseFixture {
         assertEq(auraStrategy.withdrawalMaxDeviationThreshold(), 100);
     }
 
+    function testSetauraBalToBalEthBptMinOutBps() public {
+        vm.startPrank(governance);
+        auraStrategy.setAuraBalToBalEthBptMinOutBps(BIPS);
+        assertEq(auraStrategy.auraBalToBalEthBptMinOutBps(), BIPS);
+
+        vm.expectRevert("Invalid minOutBps");
+        auraStrategy.setAuraBalToBalEthBptMinOutBps(BIPS + 1000);
+        vm.stopPrank();
+    }
     /////////////////////////////////////////////////////////////////////////////
     ///////                  auraBAL rewards harvest                        /////
     /////////////////////////////////////////////////////////////////////////////
+
     function testHarvestWithAuraBAllRewards(uint96 _depositPerUser, uint96 _auraRewards) public {
         vm.assume(_depositPerUser > 10e18);
         vm.assume(_depositPerUser < 100_000e18);
