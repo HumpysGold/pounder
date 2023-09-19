@@ -16,7 +16,6 @@ contract PaladinIntegration is BaseFixture {
     // existing recipient on mainnet tree root to simulate Paladin rewards
     address payable public CLAIMER = payable(0x99AfD53f807766A8B98400B0C785E500c041F32B);
     address payable public CLAIMER_MULTI = payable(0x19124Ee4114B0444535eE57b30118CBD1Ca11eDA);
-    address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     /////////////////////////////////////////////////////////////////////////////
     ///////                  Paladin rewards harvest                        /////
     /////////////////////////////////////////////////////////////////////////////
@@ -55,8 +54,12 @@ contract PaladinIntegration is BaseFixture {
         proof[4] = 0x37853cce97340c343960af4aa25917754e858fb192ef3f2308c46986d61a7ea5;
         proof[5] = 0xcffdd8c5e040fe25f4d858f7bf9c91d95d3f63cc0ed3b22b4135e3381a5c65cf;
         IExtraRewardsMultiMerkle.ClaimParams[] memory paladinClaimParams = new IExtraRewardsMultiMerkle.ClaimParams[](1);
-        paladinClaimParams[0] =
-            IExtraRewardsMultiMerkle.ClaimParams({ token: USDC, index: 37, amount: 333_826_841, merkleProof: proof });
+        paladinClaimParams[0] = IExtraRewardsMultiMerkle.ClaimParams({
+            token: address(USDC),
+            index: 37,
+            amount: 333_826_841,
+            merkleProof: proof
+        });
         vm.prank(governance);
         AuraStrategy(CLAIMER).harvestPaladinDelegate(paladinClaimParams);
         // Make sure ppfs increased:

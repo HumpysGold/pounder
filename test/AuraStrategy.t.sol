@@ -124,6 +124,91 @@ contract TestAuraStrategy is BaseFixture {
     /////////////////////////////////////////////////////////////////////////////
     ///////                      Manual ops tests                           /////
     /////////////////////////////////////////////////////////////////////////////
+
+    /// @dev Setup redirection route for rewards tokens that strategy can accidentially receive
+    function testSweepRewardHappy(uint96 _rewardAmount, uint16 _fee) public {
+        vm.assume(_rewardAmount > 10e6);
+        vm.assume(_rewardAmount < 100_000e6);
+
+        vm.assume(_fee > 0);
+        vm.assume(_fee < BIPS);
+
+        uint256 _depositPerUser = 1000e18;
+        _setupStrategy(_depositPerUser);
+
+        // Now set rewards tokens and redirection fees
+        vm.startPrank(governance);
+        auraStrategy.setRedirectionToken(address(USDC), governance, _fee);
+        vm.stopPrank;
+
+        // Give some USDC to strategy:
+        setStorage(address(auraStrategy), USDC.balanceOf.selector, address(USDC), _rewardAmount);
+
+        // Sweep now:
+        vm.startPrank(governance);
+        auraStrategy.sweepRewardToken(address(USDC));
+        vm.stopPrank();
+        // Make sure USDC was transferred to governance and fee transferred to treasury
+        uint256 fee = _rewardAmount * _fee / BIPS;
+        assertEq(IERC20(USDC).balanceOf(treasury), fee);
+        assertEq(IERC20(USDC).balanceOf(governance), _rewardAmount - fee);
+    }
+
+    /// @dev Same as above but with bulk send
+    function testSweepBulkRewardHappy(uint96 _rewardAmountUSDC, uint96 _rewardAmountWETH, uint16 _fee) public {
+        vm.assume(_rewardAmountUSDC > 10e6);
+        vm.assume(_rewardAmountUSDC < 100_000e6);
+        vm.assume(_rewardAmountWETH > 10e6);
+        vm.assume(_rewardAmountWETH < 100_000e6);
+
+        vm.assume(_fee > 0);
+        vm.assume(_fee < BIPS);
+
+        uint256 _depositPerUser = 1000e18;
+        _setupStrategy(_depositPerUser);
+
+        // Now set rewards tokens and redirection fees
+        vm.startPrank(governance);
+        auraStrategy.setRedirectionToken(address(USDC), governance, _fee);
+        auraStrategy.setRedirectionToken(address(WETH), governance, _fee);
+        vm.stopPrank;
+
+        // Give some USDC and WETH to strategy:
+        setStorage(address(auraStrategy), USDC.balanceOf.selector, address(USDC), _rewardAmountUSDC);
+        setStorage(address(auraStrategy), WETH.balanceOf.selector, address(WETH), _rewardAmountWETH);
+
+        // Sweep now:
+        vm.startPrank(governance);
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(USDC);
+        tokens[1] = address(WETH);
+        auraStrategy.sweepRewards(tokens);
+        vm.stopPrank();
+
+        // Make sure USDC was transferred to governance and fee transferred to treasury
+        uint256 fee = _rewardAmountUSDC * _fee / BIPS;
+        assertEq(IERC20(USDC).balanceOf(treasury), fee);
+        assertEq(IERC20(USDC).balanceOf(governance), _rewardAmountUSDC - fee);
+
+        // Make sure WETH was transferred to governance and fee transferred to treasury
+        fee = _rewardAmountWETH * _fee / BIPS;
+        assertEq(IERC20(WETH).balanceOf(treasury), fee);
+        assertEq(IERC20(WETH).balanceOf(governance), _rewardAmountWETH - fee);
+    }
+
+    /// @dev Can't sweep protected token
+    function testSweepRewardProtectedToken() public {
+        uint256 _depositPerUser = 1000e18;
+        _setupStrategy(_depositPerUser);
+
+        vm.startPrank(governance);
+        auraStrategy.setRedirectionToken(address(AURA), governance, 100);
+        // Even if governance set AURA as redirection token, it should not be possible to sweep it
+        vm.expectRevert("_onlyNotProtectedTokens");
+        auraStrategy.sweepRewardToken(address(AURA));
+        vm.stopPrank;
+    }
+
     /// @dev Manual ops to process expired locks, withdraw aura from locker and send to vault
     function testManualProcessExpiredLock(uint96 _depositPerUser) public {
         vm.assume(_depositPerUser > 10e18);
