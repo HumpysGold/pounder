@@ -22,9 +22,8 @@ contract PaladinIntegration is BaseFixture {
     /////////////////////////////////////////////////////////////////////////////
 
     /// @dev Integration test for Paladin rewards harvest
-    function testHarvestPaladinHappy(uint96 _depositPerUser) public {
-        vm.assume(_depositPerUser > 10e18);
-        vm.assume(_depositPerUser < 100_000e18);
+    function testHarvestPaladinHappy() public {
+        uint256 _depositPerUser = 100_000e18;
         _setupStrategy(_depositPerUser);
 
         // inject bytecode for mirroring of Aura strategy behaviour

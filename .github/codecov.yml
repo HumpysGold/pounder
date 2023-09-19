@@ -1,0 +1,7 @@
+ignore:
+  - "lib"
+  - "test"
+  - "test/BaseFixture.sol"
+  - "test/Utils.sol"
+  - "test/AuraStrategy.t.sol"
+  - "test/Vault.t.sol"
