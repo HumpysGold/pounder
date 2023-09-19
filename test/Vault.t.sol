@@ -9,6 +9,10 @@ contract TestVault is BaseFixture {
         super.setUp();
     }
 
+    /////////////////////////////////////////////////////////////////////////////
+    ///////                      Misc and setters                           /////
+    /////////////////////////////////////////////////////////////////////////////
+
     function testSetup() public {
         assertEq(vault.symbol(), "gAURA");
         assertEq(vault.strategy(), address(auraStrategy));
@@ -51,6 +55,137 @@ contract TestVault is BaseFixture {
         );
     }
 
+    function testSetTreasuryHappy() public {
+        vm.prank(governance);
+        vault.setTreasury(address(1337));
+        assertEq(vault.treasury(), address(1337));
+    }
+
+    function testSetTreasuryUnHappy() public {
+        vm.expectRevert("onlyGovernance");
+        vault.setTreasury(address(1337));
+    }
+
+    function testSetStrategyHappy() public {
+        vm.prank(governance);
+        vault.setStrategy(address(1337));
+        assertEq(vault.strategy(), address(1337));
+    }
+
+    /// @dev Can't change strategy when strategy has aura locked:
+    function testSetStrategyUnhappy() public {
+        // Give alice some AURA:
+        setStorage(alice, AURA.balanceOf.selector, address(AURA), 1000e18);
+        vm.startPrank(alice);
+        // Approve the vault to spend AURA:
+        AURA.approve(address(vault), 1000e18);
+        vault.deposit(1000e18);
+        vm.stopPrank();
+        // Invest loose aura in strategy and lock it
+        vm.prank(governance);
+        vault.earn();
+
+        // Impossible to change strategy now
+        vm.startPrank(governance);
+        vm.expectRevert("Please withdrawToVault before changing strat");
+        vault.setStrategy(address(1337));
+        vm.stopPrank();
+    }
+
+    function testSetMaxWithdrawalFeeHappy(uint16 fee) public {
+        vm.assume(fee > 0);
+        vm.assume(fee < vault.WITHDRAWAL_FEE_HARD_CAP() - 1);
+        vm.prank(governance);
+        vault.setMaxWithdrawalFee(fee);
+        assertEq(vault.maxWithdrawalFee(), fee);
+    }
+
+    function testSetMaxWithdrawalFeeUnHappy(uint16 fee) public {
+        vm.assume(fee > vault.WITHDRAWAL_FEE_HARD_CAP());
+        vm.assume(fee < BIPS);
+        vm.startPrank(governance);
+        vm.expectRevert("withdrawalFee too high");
+        vault.setMaxWithdrawalFee(fee);
+        vm.stopPrank();
+    }
+
+    function testSetMaxPerformanceFeeHappy(uint16 fee) public {
+        vm.assume(fee > 0);
+        vm.assume(fee < vault.PERFORMANCE_FEE_HARD_CAP() - 1);
+        vm.prank(governance);
+        vault.setMaxPerformanceFee(fee);
+        assertEq(vault.maxPerformanceFee(), fee);
+    }
+
+    function testSetMaxPeformanceFeeUnHappy(uint16 fee) public {
+        vm.assume(fee > vault.PERFORMANCE_FEE_HARD_CAP());
+        vm.assume(fee < BIPS);
+        vm.startPrank(governance);
+        vm.expectRevert("performanceFeeStrategist too high");
+        vault.setMaxPerformanceFee(fee);
+        vm.stopPrank();
+    }
+
+    function testSetMaxManagementFeeHappy(uint16 fee) public {
+        vm.assume(fee > 0);
+        vm.assume(fee < vault.MANAGEMENT_FEE_HARD_CAP() - 1);
+        vm.prank(governance);
+        vault.setMaxManagementFee(fee);
+        assertEq(vault.maxManagementFee(), fee);
+    }
+
+    function testSetMaxMaxManagementFeeUnHappy(uint16 fee) public {
+        vm.assume(fee > vault.MANAGEMENT_FEE_HARD_CAP());
+        vm.assume(fee < BIPS);
+        vm.startPrank(governance);
+        vm.expectRevert("managementFee too high");
+        vault.setMaxManagementFee(fee);
+        vm.stopPrank();
+    }
+
+    function testSetToEarnBpsHappy(uint16 bps) public {
+        vm.assume(bps > 0);
+        vm.assume(bps < vault.MAX_BPS() - 1);
+        vm.prank(governance);
+        vault.setToEarnBps(bps);
+        assertEq(vault.toEarnBps(), bps);
+    }
+
+    function testsetToEarnBpsUnHappy() public {
+        uint16 bps = 10_000 + 1;
+        vm.startPrank(governance);
+        vm.expectRevert("toEarnBps should be <= MAX_BPS");
+        vault.setToEarnBps(bps);
+        vm.stopPrank();
+    }
+
+    function testSetWithdrawaFeeHappy() public {
+        vm.prank(governance);
+        vault.setWithdrawalFee(100);
+        assertEq(vault.withdrawalFee(), 100);
+    }
+
+    function testSetsetPerformanceFeeStrategistHappy() public {
+        vm.prank(governance);
+        vault.setPerformanceFeeStrategist(100);
+        assertEq(vault.performanceFeeStrategist(), 100);
+    }
+
+    function testSetPerformanceFeeGovernanceHappy() public {
+        vm.prank(governance);
+        vault.setPerformanceFeeGovernance(100);
+        assertEq(vault.performanceFeeGovernance(), 100);
+    }
+
+    function testSetManagementFee() public {
+        vm.prank(governance);
+        vault.setManagementFee(100);
+        assertEq(vault.managementFee(), 100);
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
+    ///////                            Core                                 /////
+    /////////////////////////////////////////////////////////////////////////////
     function testSimpleDeposit(uint256 _depositAmount) public {
         vm.assume(_depositAmount > 1e18);
         vm.assume(_depositAmount < 100_000_000e18);
