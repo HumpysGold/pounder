@@ -14,6 +14,16 @@ contract TestAuraStrategy is BaseFixture {
     }
 
     /////////////////////////////////////////////////////////////////////////////
+    ///////                      Misc                                       /////
+    /////////////////////////////////////////////////////////////////////////////
+    function testGetProtectedTokens() public {
+        address[] memory protectedTokens = auraStrategy.getProtectedTokens();
+        assertEq(protectedTokens.length, 2);
+        assertEq(protectedTokens[0], address(AURA));
+        assertEq(protectedTokens[1], address(auraStrategy.AURABAL()));
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
     ///////                  auraBAL rewards harvest                        /////
     /////////////////////////////////////////////////////////////////////////////
     function testHarvestWithAdditionalRewards(uint96 _depositPerUser, uint96 _auraRewards) public {
@@ -153,5 +163,30 @@ contract TestAuraStrategy is BaseFixture {
         vm.prank(governance);
         auraStrategy.manualSendAuraToVault();
         assertEq(AURA.balanceOf(address(vault)), auraVaultSnapshot);
+    }
+
+    /// @dev Check delegate
+    function testDelegateHappy() public {
+        // Setup strategy so it has some AURA to delegate
+        _setupStrategy(1000e18);
+        vm.startPrank(governance);
+        auraStrategy.setAuraLockerDelegate(auraStrategy.PALADIN_VOTER_ETH());
+        vm.stopPrank();
+        assertEq(auraStrategy.getAuraLockerDelegate(), auraStrategy.PALADIN_VOTER_ETH());
+
+        // Try to redelegate
+        vm.startPrank(governance);
+        auraStrategy.setAuraLockerDelegate(address(this));
+        vm.stopPrank();
+        assertEq(auraStrategy.getAuraLockerDelegate(), address(this));
+    }
+
+    /// @dev Should fail to delegate when no aura locked
+    function testDelegateNoAURAToDelegate() public {
+        vm.startPrank(governance);
+        address delegatooor = auraStrategy.PALADIN_VOTER_ETH();
+        vm.expectRevert("Nothing to delegate");
+        auraStrategy.setAuraLockerDelegate(delegatooor);
+        vm.stopPrank();
     }
 }
