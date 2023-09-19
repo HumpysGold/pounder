@@ -121,6 +121,26 @@ contract TestAuraStrategy is BaseFixture {
         assertGt(AURA.balanceOf(strategyUsers[0]), _depositPerUser);
     }
 
+    /// @dev Manually call reinvest when aura lock expired and wasn't reinvested automatically for some reason
+    function testStrategyManualReinvest(uint96 _depositPerUser) public {
+        vm.assume(_depositPerUser > 10e18);
+        vm.assume(_depositPerUser < 100_000e18);
+        _setupStrategy(_depositPerUser);
+
+        uint256 balanceSnapshot = auraStrategy.balanceOfPool();
+        vm.warp(block.timestamp + 200 days);
+        // Give strategy some additional aura to make sure it will be reinvested and to check balance after
+        uint256 bonusAura = 1000e18;
+        setStorage(address(auraStrategy), AURA.balanceOf.selector, address(AURA), bonusAura);
+
+        // Reinvest manually now:
+        vm.prank(governance);
+        auraStrategy.reinvest();
+
+        // Check that strategy invested all loose AURA into locker
+        assertEq(auraStrategy.balanceOfPool(), balanceSnapshot + bonusAura);
+    }
+
     /////////////////////////////////////////////////////////////////////////////
     ///////                      Manual ops tests                           /////
     /////////////////////////////////////////////////////////////////////////////

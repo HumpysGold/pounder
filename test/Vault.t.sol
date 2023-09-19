@@ -331,6 +331,41 @@ contract TestVault is BaseFixture {
         assertEq(auraStrategy.balanceOfPool(), vaultBalanceBefore * vault.toEarnBps() / BIPS);
     }
 
+    /// @dev Deposit, wait for aura to unlock, unlock aura and withdraw to vault
+    function testWithdrawToVault(uint256 _depositAmount) public {
+        vm.assume(_depositAmount > 10e18);
+        vm.assume(_depositAmount < 100_000_000e18);
+        // Give alice some AURA:
+        setStorage(alice, AURA.balanceOf.selector, address(AURA), _depositAmount);
+        vm.startPrank(alice);
+        // Approve the vault to spend AURA:
+        AURA.approve(address(vault), _depositAmount);
+        vault.deposit(_depositAmount);
+        vm.stopPrank();
+        vm.prank(governance);
+        vault.earn();
+
+        uint256 auraBalanceSnapshot = AURA.balanceOf(address(vault));
+
+        vm.startPrank(governance);
+        vm.expectRevert("Tokens still locked");
+        vault.withdrawToVault();
+        vm.stopPrank();
+
+        // Roll for some time to unlock aura
+        vm.warp(block.timestamp + 200 days);
+        vm.startPrank(governance);
+        // Unlock tokens manually
+        auraStrategy.manualProcessExpiredLocks();
+        vault.withdrawToVault();
+        vm.stopPrank();
+
+        // Make sure all aura is back in vault
+        assertGt(AURA.balanceOf(address(vault)), auraBalanceSnapshot);
+        assertEq(auraStrategy.balanceOfWant(), 0);
+        assertEq(AURA.balanceOf(address(vault)), _depositAmount);
+    }
+
     /////////////////////////////////////////////////////////////////////////////
     ///////                      Manual ops tests                           /////
     /////////////////////////////////////////////////////////////////////////////
