@@ -322,7 +322,6 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
 
     /// @notice Used by the strategy to report harvest of additional tokens to the sett.
     ///         Charges performance fees on the additional tokens and transfers fees to treasury and strategist.
-    ///         TODO: The remaining amount is sent to where?
     ///         Updates harvest variables for on-chain APR tracking.
     ///         This can only be called by the strategy.
     /// @dev This function is called after the strategy sends the additional tokens to the sett.
@@ -336,14 +335,13 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
         additionalTokensEarned[_token] = additionalTokensEarned[_token].add(tokenBalance);
         lastAdditionalTokenAmount[_token] = tokenBalance;
 
-        // We may have more, but we still report only what the strat sent
-        uint256 governanceRewardsFee = _calculateFee(tokenBalance, performanceFeeGovernance);
+        // Give strategist fees if any and yeet all the rest to the governance
         uint256 strategistRewardsFee = _calculateFee(tokenBalance, performanceFeeStrategist);
-
-        if (governanceRewardsFee != 0) {
+        uint256 treasuryShare = tokenBalance.sub(strategistRewardsFee);
+        if (treasuryShare != 0) {
             address cachedTreasury = treasury;
-            IERC20Upgradeable(_token).safeTransfer(cachedTreasury, governanceRewardsFee);
-            emit PerformanceFeeGovernance(cachedTreasury, _token, governanceRewardsFee, block.number, block.timestamp);
+            IERC20Upgradeable(_token).safeTransfer(cachedTreasury, treasuryShare);
+            emit PerformanceFeeGovernance(cachedTreasury, _token, treasuryShare, block.number, block.timestamp);
         }
 
         if (strategistRewardsFee != 0) {
@@ -351,11 +349,6 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
             IERC20Upgradeable(_token).safeTransfer(cachedStrategist, strategistRewardsFee);
             emit PerformanceFeeStrategist(cachedStrategist, _token, strategistRewardsFee, block.number, block.timestamp);
         }
-
-        // Send rest to tree
-        //        uint256 newBalance = IERC20Upgradeable(_token).balanceOf(address(this));
-        //        IERC20Upgradeable(_token).safeTransfer(badgerTree, newBalance);
-        //        emit TreeDistribution(_token, newBalance, block.number, block.timestamp);
     }
 
     /// ===== Permissioned Actions: Governance =====

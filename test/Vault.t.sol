@@ -195,4 +195,44 @@ contract TestVault is BaseFixture {
         // Make sure aura is locked in strategy
         assertEq(auraStrategy.balanceOfPool(), vaultBalanceBefore * vault.toEarnBps() / BIPS);
     }
+
+    /// @dev Testing emit of non protected tokens
+    function testEmitNonProtectedTokenHappy(uint256 _tokenAmount) public {
+        vm.assume(_tokenAmount > 10e18);
+        vm.assume(_tokenAmount < 100_000_000e18);
+
+        // Give some non-protected tokens to strategy
+        setStorage(address(auraStrategy), WETH.balanceOf.selector, address(WETH), _tokenAmount);
+
+        // Now, vault makes a call to strategy to emit non-protected tokens
+        vm.startPrank(governance);
+        vault.emitNonProtectedToken(address(WETH));
+        vm.stopPrank();
+        // Token amount is split between treasury and strategist in case strategist fee is enabled
+        // If strategist fees are disabled, treasury gets all tokens
+        // Make sure all tokens given to governance and strategist:
+        uint256 strategistFees = _tokenAmount * vault.performanceFeeStrategist() / BIPS;
+        uint256 treasuryShare = _tokenAmount - strategistFees;
+
+        assertEq(WETH.balanceOf(treasury), treasuryShare);
+        // Strategist fees not enabled in goldAURA
+        assertEq(WETH.balanceOf(governance), 0);
+        assertEq(strategistFees, 0);
+    }
+
+    /// @dev Testing emit of non protected tokens should revert on attempting to emit protected tokens
+    function testEmitNonProtectedTokenUnhappy(uint256 _tokenAmount) public {
+        vm.assume(_tokenAmount > 10e18);
+        vm.assume(_tokenAmount < 100_000_000e18);
+
+        // Give some non-protected tokens to strategy
+        setStorage(address(auraStrategy), AURA.balanceOf.selector, address(AURA), _tokenAmount);
+
+        // Now, vault makes a call to strategy to emit non-protected tokens and it should revert because
+        // AURA is protected token
+        vm.startPrank(governance);
+        vm.expectRevert("_onlyNotProtectedTokens");
+        vault.emitNonProtectedToken(address(AURA));
+        vm.stopPrank();
+    }
 }
