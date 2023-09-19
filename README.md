@@ -24,6 +24,12 @@ Pounder, on the other hand, operates differently, at least for now:
 
 This fulfills the primary feature that graviAURA was missing: the automatic compounding of all rewards back into the vault, hence the name - Pounder.
 
+## What about fees?
+Initial thinking on fees:
+- 5% to team/ops
+- 5% to vote for own liquidity(through bribes)
+- 5% to buy and burn GOLD(using msig)
+
 ## Other differences from Badger vault and graviAURA:
 1. All brownie tests are rewritten in Forge/Solidity now
 3. When sweeping/withdrawing non-AURA tokens from strategy, Vault logic won't send them to the badgertree, but to the treasury instead
