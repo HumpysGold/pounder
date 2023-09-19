@@ -196,6 +196,9 @@ contract TestVault is BaseFixture {
         assertEq(auraStrategy.balanceOfPool(), vaultBalanceBefore * vault.toEarnBps() / BIPS);
     }
 
+    /////////////////////////////////////////////////////////////////////////////
+    ///////                      Manual ops tests                           /////
+    /////////////////////////////////////////////////////////////////////////////
     /// @dev Testing emit of non protected tokens
     function testEmitNonProtectedTokenHappy(uint256 _tokenAmount) public {
         vm.assume(_tokenAmount > 10e18);
@@ -233,6 +236,38 @@ contract TestVault is BaseFixture {
         vm.startPrank(governance);
         vm.expectRevert("_onlyNotProtectedTokens");
         vault.emitNonProtectedToken(address(AURA));
+        vm.stopPrank();
+    }
+
+    /// @dev Testing function that sweeps token from strategy to vault and then to governance
+    function testSweepExtraTokenHappy(uint256 _tokenAmount) public {
+        vm.assume(_tokenAmount > 10e18);
+        vm.assume(_tokenAmount < 100_000_000e18);
+
+        // Give some non-protected tokens to strategy
+        setStorage(address(auraStrategy), WETH.balanceOf.selector, address(WETH), _tokenAmount);
+
+        vm.startPrank(governance);
+        vault.sweepExtraToken(address(WETH));
+        vm.stopPrank();
+
+        assertEq(WETH.balanceOf(governance), _tokenAmount);
+        assertEq(WETH.balanceOf(address(auraStrategy)), 0);
+    }
+
+    /// @dev Same as above but with protected token should revert
+    function testSweepExtraTokenUnhappy(uint256 _tokenAmount) public {
+        vm.assume(_tokenAmount > 10e18);
+        vm.assume(_tokenAmount < 100_000_000e18);
+
+        // Give some non-protected tokens to strategy
+        setStorage(address(auraStrategy), AURA.balanceOf.selector, address(AURA), _tokenAmount);
+
+        // Now, vault makes a call to strategy to emit non-protected tokens and it should revert because
+        // AURA is protected token
+        vm.startPrank(governance);
+        vm.expectRevert("No want");
+        vault.sweepExtraToken(address(AURA));
         vm.stopPrank();
     }
 }
