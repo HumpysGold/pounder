@@ -26,7 +26,7 @@ contract TestAuraStrategy is BaseFixture {
     /////////////////////////////////////////////////////////////////////////////
     ///////                  auraBAL rewards harvest                        /////
     /////////////////////////////////////////////////////////////////////////////
-    function testHarvestWithAdditionalRewards(uint96 _depositPerUser, uint96 _auraRewards) public {
+    function testHarvestWithAuraBAllRewards(uint96 _depositPerUser, uint96 _auraRewards) public {
         vm.assume(_depositPerUser > 10e18);
         vm.assume(_depositPerUser < 100_000e18);
 
@@ -59,9 +59,59 @@ contract TestAuraStrategy is BaseFixture {
         vm.stopPrank();
     }
 
+    /// @dev Check that treasury get management fees when harvest reports to vault with profits
+    function testHarvestWithManagementFees(uint96 _depositPerUser, uint96 _auraRewards) public {
+        vm.assume(_depositPerUser > 10e18);
+        vm.assume(_depositPerUser < 100_000e18);
+
+        vm.assume(_auraRewards > 10e18);
+        vm.assume(_auraRewards < 100_000e18);
+
+        _setupStrategy(_depositPerUser);
+        _distributeAuraBalRewards(_auraRewards);
+
+        uint256 ppfsSnapshot = vault.getPricePerFullShare();
+        uint256 treasurySnapshot = vault.balanceOf(treasury);
+        vm.prank(governance);
+        vault.setManagementFee(50);
+        vm.warp(block.timestamp + 14 days);
+        vm.prank(governance);
+        auraStrategy.harvest();
+
+        // Make sure ppfs in vault increased
+        assertGt(vault.getPricePerFullShare(), ppfsSnapshot);
+        // Make sure treasury has received management fee
+        assertGt(vault.balanceOf(treasury), treasurySnapshot);
+    }
+
+    /// @dev Check that treasury get performance fees when harvest reports to vault with profits
+    function testHarvestWithPerformanceGovernanceFees(uint96 _depositPerUser, uint96 _auraRewards) public {
+        vm.assume(_depositPerUser > 10e18);
+        vm.assume(_depositPerUser < 100_000e18);
+
+        vm.assume(_auraRewards > 10e18);
+        vm.assume(_auraRewards < 100_000e18);
+
+        _setupStrategy(_depositPerUser);
+        _distributeAuraBalRewards(_auraRewards);
+
+        uint256 ppfsSnapshot = vault.getPricePerFullShare();
+        uint256 treasurySnapshot = vault.balanceOf(treasury);
+        vm.prank(governance);
+        vault.setPerformanceFeeGovernance(50);
+        vm.warp(block.timestamp + 14 days);
+        vm.prank(governance);
+        auraStrategy.harvest();
+
+        // Make sure ppfs in vault increased
+        assertGt(vault.getPricePerFullShare(), ppfsSnapshot);
+        // Make sure treasury has received management fee
+        assertGt(vault.balanceOf(treasury), treasurySnapshot);
+    }
+
     /// @dev Same as above, with the only difference that no additional rewards are NOT distributed
     /// to aura locker
-    function testHarvestWithoutAdditionalRewards(uint96 _depositPerUser) public {
+    function testHarvestWithoutAuraBAlRewards(uint96 _depositPerUser) public {
         vm.assume(_depositPerUser > 10e18);
         vm.assume(_depositPerUser < 100_000e18);
         _setupStrategy(_depositPerUser);
