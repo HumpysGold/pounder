@@ -55,6 +55,24 @@ contract TestVault is BaseFixture {
         );
     }
 
+    function testSetKeeperHappy() public {
+        vm.prank(governance);
+        vault.setKeeper(address(1337));
+        assertEq(vault.keeper(), address(1337));
+    }
+
+    function testSetStrategistHappy() public {
+        vm.prank(governance);
+        vault.setStrategist(address(1337));
+        assertEq(vault.strategist(), address(1337));
+    }
+
+    function testSetGovernanceHappy() public {
+        vm.prank(governance);
+        vault.setGovernance(address(1337));
+        assertEq(vault.governance(), address(1337));
+    }
+
     function testSetTreasuryHappy() public {
         vm.prank(governance);
         vault.setTreasury(address(1337));
