@@ -23,6 +23,12 @@ contract TestAuraStrategy is BaseFixture {
         assertEq(protectedTokens[1], address(auraStrategy.AURABAL()));
     }
 
+    function testSetWithdrawalMaxDeviationThreshold() public {
+        vm.prank(governance);
+        auraStrategy.setWithdrawalMaxDeviationThreshold(100);
+        assertEq(auraStrategy.withdrawalMaxDeviationThreshold(), 100);
+    }
+
     /////////////////////////////////////////////////////////////////////////////
     ///////                  auraBAL rewards harvest                        /////
     /////////////////////////////////////////////////////////////////////////////
