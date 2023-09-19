@@ -29,6 +29,26 @@ contract TestVault is BaseFixture {
         assertEq(auraStrategy.getName(), "GOLD vlAURA Voting Strategy");
 
         assertEq(vault.version(), "1.5");
+
+        // Make sure we can't initialize strategy and vault twice
+        vm.expectRevert("Initializable: contract is already initialized");
+        auraStrategy.initialize(address(vault));
+
+        vm.expectRevert("Initializable: contract is already initialized");
+        uint256[4] memory _feeConfig = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        string memory _name = "Gold Aura";
+        string memory _symbol = "gAURA";
+        vault.initialize(
+            address(1337),
+            address(1337),
+            address(1337),
+            address(1337),
+            address(1337),
+            address(1337),
+            _name,
+            _symbol,
+            _feeConfig
+        );
     }
 
     function testSimpleDeposit(uint256 _depositAmount) public {
