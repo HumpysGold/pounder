@@ -20,6 +20,10 @@ import { IDelegateRegistry } from "./interfaces/IDelegateRegistry.sol";
 import { IExtraRewardsMultiMerkle } from "./interfaces/IExtraRewardsMultiMerkle.sol";
 import { IUniswapV2Router } from "./interfaces/IUniswapV2Router.sol";
 
+// Welcome to GoldenBoys Club
+// Own it, make Yourself a GoldenBoy!
+// Its Time to Shine
+
 contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;

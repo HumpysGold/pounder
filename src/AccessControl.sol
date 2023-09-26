@@ -7,6 +7,11 @@ import "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initiali
 /*
     Common base for permissioned roles
 */
+
+// Welcome to GoldenBoys Club
+// Own it, make Yourself a GoldenBoy!
+// Its Time to Shine
+
 contract AccessControl is Initializable {
     address public governance;
     address public strategist;

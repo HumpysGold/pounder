@@ -22,6 +22,10 @@ import { IERC20 } from "../lib/forge-std/src/interfaces/IERC20.sol";
 // (   / \__,_| \__,_| _|   \__,_| \____| \___/  _____| ____/
 //   _|
 
+// Welcome to GoldenBoys Club
+// Own it, make Yourself a GoldenBoy!
+// Its Time to Shine
+
 /*
     Source: https://github.com/iearn-finance/yearn-protocol/blob/develop/contracts/vaults/yVault.sol
     Forked from https://github.com/GalloDaSballo/badger-sett-1.5
