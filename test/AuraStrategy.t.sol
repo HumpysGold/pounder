@@ -2,7 +2,6 @@
 pragma solidity 0.8.20;
 
 import "./BaseFixture.sol";
-import { IExtraRewardsMultiMerkle } from "../src/interfaces/IExtraRewardsMultiMerkle.sol";
 
 /// @dev Basic tests for the Vault contract
 contract TestAuraStrategy is BaseFixture {
