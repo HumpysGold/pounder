@@ -223,7 +223,7 @@ contract TestAuraStrategy is BaseFixture {
 
         // Now set rewards tokens and redirection fees
         vm.startPrank(governance);
-        auraStrategy.setRedirectionToken(address(USDC), governance, _fee);
+        auraStrategy.setRedirectionToken(address(USDC), _fee);
         vm.stopPrank;
 
         // Give some USDC to strategy:
@@ -231,7 +231,7 @@ contract TestAuraStrategy is BaseFixture {
 
         // Sweep now:
         vm.startPrank(governance);
-        auraStrategy.sweepRewardToken(address(USDC));
+        auraStrategy.sweepRewardToken(address(USDC), governance);
         vm.stopPrank();
         // Make sure USDC was transferred to governance and fee transferred to treasury
         uint256 fee = _rewardAmount * _fee / BIPS;
@@ -254,8 +254,8 @@ contract TestAuraStrategy is BaseFixture {
 
         // Now set rewards tokens and redirection fees
         vm.startPrank(governance);
-        auraStrategy.setRedirectionToken(address(USDC), governance, _fee);
-        auraStrategy.setRedirectionToken(address(WETH), governance, _fee);
+        auraStrategy.setRedirectionToken(address(USDC), _fee);
+        auraStrategy.setRedirectionToken(address(WETH), _fee);
         vm.stopPrank;
 
         // Give some USDC and WETH to strategy:
@@ -267,7 +267,7 @@ contract TestAuraStrategy is BaseFixture {
         address[] memory tokens = new address[](2);
         tokens[0] = address(USDC);
         tokens[1] = address(WETH);
-        auraStrategy.sweepRewards(tokens);
+        auraStrategy.sweepRewards(tokens, governance);
         vm.stopPrank();
 
         // Make sure USDC was transferred to governance and fee transferred to treasury
@@ -287,11 +287,11 @@ contract TestAuraStrategy is BaseFixture {
         _setupStrategy(_depositPerUser);
 
         vm.startPrank(governance);
-        auraStrategy.setRedirectionToken(address(AURA), governance, 100);
+        auraStrategy.setRedirectionToken(address(AURA), 100);
         // Even if governance set AURA as redirection token, it should not be possible to sweep it
         vm.expectRevert("_onlyNotProtectedTokens");
-        auraStrategy.sweepRewardToken(address(AURA));
-        vm.stopPrank;
+        auraStrategy.sweepRewardToken(address(AURA), governance);
+        vm.stopPrank();
     }
 
     /// @dev Manual ops to process expired locks, withdraw aura from locker and send to vault

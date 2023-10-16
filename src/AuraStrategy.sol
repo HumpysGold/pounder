@@ -58,12 +58,10 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     bytes32 public constant AURABAL_BALETH_BPT_POOL_ID =
         0x3dd0843a028c86e0b760b1a76929d1c5ef93a2dd000200000000000000000249;
     bytes32 public constant BAL_ETH_POOL_ID = 0x5c6ee304399dbdb9c8ef030ab642b10820db8f56000200000000000000000014;
-    bytes32 public constant AURA_ETH_POOL_ID = 0xc29562b045d80fd77c69bec09541f5c16fe20d9d000200000000000000000251;
+    bytes32 public constant AURA_ETH_POOL_ID = 0xcfca23ca9ca720b6e98e3eb9b6aa0ffc4a5c08b9000200000000000000000274;
 
     uint256 private constant BPT_WETH_INDEX = 1;
 
-    // Bribe Token -> Bribe Recepient
-    mapping(address => address) public bribesRedirectionPaths;
     // Bribe Token -> Redirection Fee
     mapping(address => uint256) public redirectionFees;
 
@@ -145,23 +143,13 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         processLocksOnReinvest = newProcessLocksOnReinvest;
     }
 
-    /// @dev Sets the redirection path for a given token as well as the redirection fee to
-    ///      process for it.
-    /// @notice There can only be one recepient per token, calling this function for the same
-    /// @notice token will replace the previous one.
-    /// @notice Adding a token to this mapping means that the full amount (minus the fee) of this
-    /// @notice token, claimed from HiddenHands, will be transfer to this recepient.
+    /// @dev Sets the redirection fee for a given token
     /// @param token Bribe token to redirect
-    /// @param recepient Address where redirected token will be transferred
     /// @param redirectionFee Fee to be processed for the redirection service, different per token
-    function setRedirectionToken(address token, address recepient, uint256 redirectionFee) external {
+    function setRedirectionToken(address token, uint256 redirectionFee) external {
         _onlyGovernance();
         require(token != address(0), "Invalid token address");
-        require(recepient != address(0), "Invalid recepient address");
         require(redirectionFee <= MAX_BPS, "Invalid redirection fee");
-
-        // Sets redirection path for a given token
-        bribesRedirectionPaths[token] = recepient;
         // Sets redirection fees for a given token
         redirectionFees[token] = redirectionFee;
     }
@@ -169,18 +157,18 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     /// @dev Function to move rewards that are not protected
     /// @notice Only not protected, moves the whole amount using _handleRewardTransfer
     /// @notice because token paths are hardcoded, this function is safe to be called by anyone
-    function sweepRewardToken(address token) external nonReentrant {
+    function sweepRewardToken(address token, address recepient) external nonReentrant {
         _onlyGovernance();
-        _sweepRewardToken(token);
+        _sweepRewardToken(token, recepient);
     }
 
     /// @dev Bulk function for sweepRewardToken
-    function sweepRewards(address[] calldata tokens) external nonReentrant {
+    function sweepRewards(address[] calldata tokens, address recepient) external nonReentrant {
         _onlyGovernance();
 
         uint256 length = tokens.length;
         for (uint256 i = 0; i < length; ++i) {
-            _sweepRewardToken(tokens[i]);
+            _sweepRewardToken(tokens[i], recepient);
         }
     }
 
@@ -494,11 +482,10 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         }
     }
 
-    function _sweepRewardToken(address token) internal {
+    function _sweepRewardToken(address token, address recepient) internal {
         _onlyNotProtectedTokens(token);
 
         uint256 toSend = IERC20Upgradeable(token).balanceOf(address(this));
-        address recepient = bribesRedirectionPaths[token];
         _handleRewardTransfer(token, recepient, toSend);
     }
 
