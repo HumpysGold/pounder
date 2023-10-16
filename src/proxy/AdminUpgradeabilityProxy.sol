@@ -2,40 +2,7 @@
 
 pragma solidity ^0.8.13;
 
-/**
- * @dev Collection of functions related to the address type
- */
-library Address {
-    /**
-     * @dev Returns true if `account` is a contract.
-     *
-     * [IMPORTANT]
-     * ====
-     * It is unsafe to assume that an address for which this function returns
-     * false is an externally-owned account (EOA) and not a contract.
-     *
-     * Among others, `isContract` will return false for the following
-     * types of addresses:
-     *
-     *  - an externally-owned account
-     *  - a contract in construction
-     *  - an address where a contract will be created
-     *  - an address where a contract lived, but was destroyed
-     * ====
-     */
-    function isContract(address account) internal view returns (bool) {
-        // This method relies on extcodesize, which returns 0 for contracts in
-        // construction, since the code is only stored at the end of the
-        // constructor execution.
-
-        uint256 size;
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            size := extcodesize(account)
-        }
-        return size > 0;
-    }
-}
+import "../../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 
 /**
  * @title Proxy
@@ -117,6 +84,7 @@ abstract contract Proxy {
  * Such a change is called an implementation upgrade.
  */
 contract UpgradeabilityProxy is Proxy {
+    using Address for address;
     /**
      * @dev Contract constructor.
      * @param _logic Address of the initial implementation.
@@ -128,6 +96,7 @@ contract UpgradeabilityProxy is Proxy {
      * This parameter is optional, if no data is given the initialization call to proxied contract
      * will be skipped.
      */
+
     constructor(address _logic, bytes memory _data) public payable {
         assert(IMPLEMENTATION_SLOT == bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1));
         _setImplementation(_logic);

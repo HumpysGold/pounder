@@ -224,7 +224,7 @@ contract TestAuraStrategy is BaseFixture {
         // Now set rewards tokens and redirection fees
         vm.startPrank(governance);
         auraStrategy.setRedirectionToken(address(USDC), _fee);
-        vm.stopPrank;
+        vm.stopPrank();
 
         // Give some USDC to strategy:
         setStorage(address(auraStrategy), USDC.balanceOf.selector, address(USDC), _rewardAmount);
@@ -256,7 +256,7 @@ contract TestAuraStrategy is BaseFixture {
         vm.startPrank(governance);
         auraStrategy.setRedirectionToken(address(USDC), _fee);
         auraStrategy.setRedirectionToken(address(WETH), _fee);
-        vm.stopPrank;
+        vm.stopPrank();
 
         // Give some USDC and WETH to strategy:
         setStorage(address(auraStrategy), USDC.balanceOf.selector, address(USDC), _rewardAmountUSDC);
