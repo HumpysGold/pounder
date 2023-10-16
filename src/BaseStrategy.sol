@@ -321,25 +321,6 @@ abstract contract BaseStrategy is PausableUpgradeable {
         IVault(vault).reportHarvest(_harvestedAmount);
     }
 
-    /// @notice Sends balance of an additional token (eg. reward token) earned by the strategy to the vault.
-    ///         This should usually be called exclusively on protectedTokens.
-    ///         Calls `Vault.reportAdditionalToken` to process fees and forward amount to badgerTree to be emitted.
-    /// @dev This is how you emit tokens in V1.5
-    ///      After calling this function, the tokens are gone, sent to fee receivers and badgerTree
-    ///      This is a rug vector as it allows to move funds to the tree
-    ///      For this reason, it is recommended to verify the tree is the badgerTree from the registry
-    ///      and also check for this to be used exclusively on harvest, exclusively on protectedTokens.
-    /// @param _token Address of the token to be emitted.
-    /// @param _amount Amount of token to transfer to vault.
-    function _processExtraToken(address _token, uint256 _amount) internal {
-        require(_token != want, "Not want, use _reportToVault");
-        require(_token != address(0), "Address 0");
-        require(_amount != 0, "Amount 0");
-
-        IERC20Upgradeable(_token).safeTransfer(vault, _amount);
-        IVault(vault).reportAdditionalToken(_token);
-    }
-
     /// @notice Utility function to diff two numbers, expects higher value in first position
     function _diff(uint256 a, uint256 b) internal pure returns (uint256) {
         require(a >= b, "a should be >= b");
