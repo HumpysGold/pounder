@@ -353,7 +353,6 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         returns (TokenAmount[] memory harvested)
     {
         _onlyAuthorizedActors();
-        uint256 wethBalanceBefore = WETH.balanceOf(address(this));
         PALADIN_REWARDS_MERKLE.multiClaim(address(this), claims);
         harvested = new TokenAmount[](1);
         harvested[0].token = address(AURA);
@@ -380,7 +379,7 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
             }
         }
         // Finally, swap all WETH to AURA
-        uint256 wethEarned = WETH.balanceOf(address(this)) - wethBalanceBefore;
+        uint256 wethEarned = WETH.balanceOf(address(this));
         if (wethEarned > 0) {
             IBalancerVault.SingleSwap memory singleSwap;
             singleSwap = IBalancerVault.SingleSwap({
