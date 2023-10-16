@@ -37,6 +37,24 @@ contract TestAuraStrategy is BaseFixture {
         auraStrategy.setAuraBalToBalEthBptMinOutBps(BIPS + 1000);
         vm.stopPrank();
     }
+
+    function testVersion() public {
+        // Badger Vault ver 1.5
+        assertEq(auraStrategy.baseStrategyVersion(), "1.5");
+        // Aura strategy has 1.0 version:
+        assertEq(auraStrategy.version(), "1.0");
+    }
+
+    function testIsTendable() public {
+        // False as it is not used
+        assertEq(auraStrategy.isTendable(), false);
+    }
+
+    function testStrategist() public {
+        // Strategy strategist is same as in vault
+        assertEq(auraStrategy.strategist(), vault.strategist());
+    }
+
     /////////////////////////////////////////////////////////////////////////////
     ///////                  auraBAL rewards harvest                        /////
     /////////////////////////////////////////////////////////////////////////////
