@@ -323,6 +323,31 @@ contract TestAuraStrategy is BaseFixture {
         assertGt(AURA.balanceOf(address(vault)), auraVaultSnapshot);
     }
 
+    /// @dev Cant manual ops to process expired locks if paused
+    function testManualProcessExpiredLockPaused(uint96 _depositPerUser) public {
+        vm.assume(_depositPerUser > 10e18);
+        vm.assume(_depositPerUser < 100_000e18);
+        _setupStrategy(_depositPerUser);
+        uint256 auraVaultSnapshot = AURA.balanceOf(address(vault));
+        vm.warp(block.timestamp + 200 days);
+
+        vm.prank(governance);
+        auraStrategy.manualProcessExpiredLocks();
+
+        vm.startPrank(governance);
+        auraStrategy.pause();
+        vm.expectRevert("Pausable: paused");
+        auraStrategy.manualSendAuraToVault();
+        vm.stopPrank();
+
+        // Unpause and try again
+        vm.startPrank(governance);
+        auraStrategy.unpause();
+        auraStrategy.manualSendAuraToVault();
+        assertGt(AURA.balanceOf(address(vault)), auraVaultSnapshot);
+        vm.stopPrank();
+    }
+
     /// @dev Simple check that if ran with 0 AURA to transfer it would not fail
     function testManualSendToVaultShouldNotFailIfNoAura(uint96 _depositPerUser) public {
         vm.assume(_depositPerUser > 10e18);
