@@ -314,7 +314,6 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
             uint256 balEthBptEarned = BALANCER_VAULT.swap(singleSwap, fundManagement, minOut, type(uint256).max);
 
             // Withdraw BAL/ETH BPT -> WETH
-            uint256 wethBalanceBefore = WETH.balanceOf(address(this));
 
             IBalancerAsset[] memory assets = new IBalancerAsset[](2);
             assets[0] = IBalancerAsset(address(BAL));
@@ -328,7 +327,7 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
             BALANCER_VAULT.exitPool(BAL_ETH_POOL_ID, address(this), payable(address(this)), exitPoolRequest);
 
             // Swap WETH -> AURA
-            uint256 wethEarned = WETH.balanceOf(address(this)).sub(wethBalanceBefore);
+            uint256 wethEarned = WETH.balanceOf(address(this));
             singleSwap = IBalancerVault.SingleSwap({
                 poolId: AURA_ETH_POOL_ID,
                 kind: IBalancerVault.SwapKind.GIVEN_IN,
