@@ -257,6 +257,32 @@ contract TestAuraStrategy is BaseFixture {
         assertEq(IERC20(USDC).balanceOf(governance), _rewardAmount - fee);
     }
 
+    function testSweepRewardHappyNoFee(uint96 _rewardAmount) public {
+        vm.assume(_rewardAmount > 10e6);
+        vm.assume(_rewardAmount < 100_000e6);
+
+        uint256 _fee = 0;
+
+        uint256 _depositPerUser = 1000e18;
+        _setupStrategy(_depositPerUser);
+
+        // Now set rewards tokens and redirection fees
+        vm.startPrank(governance);
+        auraStrategy.setRedirectionToken(address(USDC), _fee);
+        vm.stopPrank();
+
+        // Give some USDC to strategy:
+        setStorage(address(auraStrategy), USDC.balanceOf.selector, address(USDC), _rewardAmount);
+
+        // Sweep now:
+        vm.startPrank(governance);
+        auraStrategy.sweepRewardToken(address(USDC), governance);
+        vm.stopPrank();
+        // Make sure USDC was transferred to governance received 0 fee
+        assertEq(IERC20(USDC).balanceOf(treasury), _fee);
+        assertEq(IERC20(USDC).balanceOf(governance), _rewardAmount);
+    }
+
     /// @dev Same as above but with bulk send
     function testSweepBulkRewardHappy(uint96 _rewardAmountUSDC, uint96 _rewardAmountWETH, uint16 _fee) public {
         vm.assume(_rewardAmountUSDC > 10e6);
