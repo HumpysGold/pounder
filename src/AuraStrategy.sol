@@ -3,8 +3,6 @@
 pragma solidity ^0.8.13;
 pragma experimental ABIEncoderV2;
 
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/token/ERC20/IERC20Upgradeable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/utils/math/SafeMathUpgradeable.sol";
@@ -26,7 +24,6 @@ import { IUniswapV2Router } from "./interfaces/IUniswapV2Router.sol";
 // Its Time to Shine
 contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-    using SafeERC20 for IERC20;
     using SafeMathUpgradeable for uint256;
 
     bool public withdrawalSafetyCheck;
@@ -356,7 +353,7 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         harvested[0].token = address(AURA);
         // Sell all  rewards to WETH
         for (uint256 i; i < claims.length; i++) {
-            IERC20 reward_token = IERC20(claims[i].token);
+            IERC20Upgradeable reward_token = IERC20Upgradeable(claims[i].token);
             // Skip if reward token is USDC or WETH
             if (address(reward_token) == address(WETH)) continue;
 
