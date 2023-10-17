@@ -13,6 +13,7 @@ contract BaseFixture is Test {
     using stdStorage for StdStorage;
 
     ERC20 public AURA = ERC20(address(0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF));
+    ERC20 public AURA_BAL = ERC20(address(0x616e8BfA43F920657B3497DBf40D6b1A02D4608d));
     ERC20 public USDC = ERC20(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48));
     ERC20 public WETH = ERC20(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
     address public constant LOCKER_REWARDS_DISTRIBUTOR = address(0xd9e863B7317a66fe0a4d2834910f604Fd6F89C6c);

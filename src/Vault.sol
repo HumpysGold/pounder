@@ -130,6 +130,11 @@ contract Vault is ERC20Upgradeable, AccessControl, PausableUpgradeable, Reentran
     event PauseDeposits(address indexed pausedBy);
     event UnpauseDeposits(address indexed pausedBy);
 
+    constructor() {
+        // Disable proxy initialize
+        _disableInitializers();
+    }
+
     /// @notice Initializes the Sett. Can only be called once, ideally when the contract is
     /// deployed.
     /// @param _token Address of the token that can be deposited into the sett.

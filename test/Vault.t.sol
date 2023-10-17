@@ -13,6 +13,56 @@ contract TestVault is BaseFixture {
     ///////                      Misc and setters                           /////
     /////////////////////////////////////////////////////////////////////////////
 
+    function testInitializeVault() public {
+        Vault _newVaultImpl = new Vault();
+        uint256[4] memory _feeConfig = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        string memory _name = "Gold Aura";
+        string memory _symbol = "gAURA";
+        bytes memory initData = abi.encodeWithSignature(
+            "initialize(address,address,address,address,address,address,string,string,uint256[4])",
+            address(AURA),
+            governance, // governance
+            address(1337), //  keeper
+            address(1337), // guardian
+            treasury,
+            address(1337),
+            _name,
+            _symbol,
+            _feeConfig
+        );
+        AdminUpgradeabilityProxy _newVaultProxy = new AdminUpgradeabilityProxy(
+            address(_newVaultImpl),
+            address(basedAdmin),
+            initData
+        );
+        Vault _newVault = Vault(payable(goldAURAProxy));
+
+        // Make sure it's initialized
+        assertEq(_newVault.symbol(), _symbol);
+        assertEq(_newVault.governance(), governance);
+        assertEq(_newVault.keeper(), address(1337));
+        assertEq(_newVault.guardian(), address(1337));
+        assertEq(_newVault.treasury(), treasury);
+        assertEq(_newVault.toEarnBps(), 9500);
+        assertEq(address(_newVault.token()), address(AURA));
+    }
+
+    function testCannotInitProxyVault() public {
+        Vault _newVaultImpl = new Vault();
+        vm.expectRevert("Initializable: contract is already initialized");
+        _newVaultImpl.initialize(
+            address(AURA),
+            address(1337),
+            address(1337),
+            address(1337),
+            address(1337),
+            address(1337),
+            "Gold Aura",
+            "gAURA",
+            [uint256(0), uint256(0), uint256(0), uint256(0)]
+        );
+    }
+
     function testSetup() public {
         assertEq(vault.symbol(), "gAURA");
         assertEq(vault.strategy(), address(auraStrategy));

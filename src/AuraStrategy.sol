@@ -78,6 +78,11 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         uint256 timestamp
     );
 
+    constructor() {
+        // Disable proxy initialize
+        _disableInitializers();
+    }
+
     /// @dev Initialize the Strategy with security settings as well as tokens
     /// @notice Proxies will set any non constant variable you declare as default value
     /// @dev add any extra changeable variable at end of initializer as shown

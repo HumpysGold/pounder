@@ -15,6 +15,34 @@ contract TestAuraStrategy is BaseFixture {
     /////////////////////////////////////////////////////////////////////////////
     ///////                      Misc                                       /////
     /////////////////////////////////////////////////////////////////////////////
+    function testInitializeStrategy() public {
+        AuraStrategy _newAuraStrategyImpl = new AuraStrategy();
+        // Initialize and check that it is initialized
+        bytes memory initData = abi.encodeWithSignature("initialize(address)", address(goldAURAProxy));
+        AdminUpgradeabilityProxy _newAuraStrategyProxy = new AdminUpgradeabilityProxy(
+            address(_newAuraStrategyImpl), address(basedAdmin), initData
+        );
+        AuraStrategy _newAuraStrategy = AuraStrategy(payable(_newAuraStrategyProxy));
+        // Check that it is initialized
+        assertEq(_newAuraStrategy.vault(), address(goldAURAProxy));
+        assertEq(_newAuraStrategy.want(), address(AURA));
+
+        // Check allowances for AURA and auraBAL and weth
+        assertEq(
+            WETH.allowance(address(_newAuraStrategy), address(_newAuraStrategy.BALANCER_VAULT())), type(uint256).max
+        );
+        assertEq(
+            AURA_BAL.allowance(address(_newAuraStrategy), address(_newAuraStrategy.BALANCER_VAULT())), type(uint256).max
+        );
+        assertEq(AURA.allowance(address(_newAuraStrategy), address(_newAuraStrategy.LOCKER())), type(uint256).max);
+    }
+
+    function testCannotInitProxyStrategy() public {
+        AuraStrategy _newAuraStrategyImpl = new AuraStrategy();
+        vm.expectRevert("Initializable: contract is already initialized");
+        _newAuraStrategyImpl.initialize(address(vault));
+    }
+
     function testGetProtectedTokens() public {
         address[] memory protectedTokens = auraStrategy.getProtectedTokens();
         assertEq(protectedTokens.length, 2);
