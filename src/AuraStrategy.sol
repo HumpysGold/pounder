@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 pragma experimental ABIEncoderV2;
 
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/token/ERC20/IERC20Upgradeable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/utils/math/SafeMathUpgradeable.sol";
@@ -23,16 +24,14 @@ import { IUniswapV2Router } from "./interfaces/IUniswapV2Router.sol";
 // Welcome to GoldenBoys Club
 // Own it, make Yourself a GoldenBoy!
 // Its Time to Shine
-
 contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
+    using SafeERC20 for IERC20;
     using SafeMathUpgradeable for uint256;
 
     bool public withdrawalSafetyCheck;
     // If nothing is unlocked, processExpiredLocks will revert
     bool public processLocksOnReinvest;
-
-    bool private isClaimingBribes;
 
     uint256 public auraBalToBalEthBptMinOutBps;
 
@@ -364,7 +363,7 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
             uint256 reward_amount = reward_token.balanceOf(address(this));
             // Approve reward token to uniswap, if rewards are 0 skip
             if (reward_amount == 0) continue;
-            else if (reward_amount > 0) reward_token.approve(address(UNI_V2), reward_amount);
+            else if (reward_amount > 0) reward_token.safeApprove(address(UNI_V2), reward_amount);
 
             address[] memory path = new address[](2);
             path[0] = address(reward_token);
@@ -374,6 +373,8 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
                 emit RewardsCollected(address(reward_token), amounts[0]);
             } catch {
                 // If univ2 pair wasn't found this means tokens can be swept later on
+                // Also, approve allowance to 0 just in case
+                reward_token.safeApprove(address(UNI_V2), 0);
                 continue;
             }
         }
@@ -444,14 +445,6 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
         _transferToVault(auraAmount);
     }
 
-    function _getBalance() internal view returns (uint256) {
-        return IVault(vault).balance();
-    }
-
-    function _getPricePerFullShare() internal view returns (uint256) {
-        return IVault(vault).getPricePerFullShare();
-    }
-
     /// *** Handling of rewards ***
     function _handleRewardTransfer(address token, address recepient, uint256 amount) internal {
         // NOTE: Tokens with an assigned recepient are sent there
@@ -485,12 +478,5 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
 
         uint256 toSend = IERC20Upgradeable(token).balanceOf(address(this));
         _handleRewardTransfer(token, recepient, toSend);
-    }
-
-    /// PAYABLE FUNCTIONS ///
-
-    /// @dev Can only receive ether from Hidden Hand
-    receive() external payable {
-        require(isClaimingBribes, "onlyWhileClaiming");
     }
 }
