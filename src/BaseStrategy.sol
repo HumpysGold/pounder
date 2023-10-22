@@ -55,9 +55,7 @@ abstract contract BaseStrategy is PausableUpgradeable {
 
         vault = _vault;
 
-        withdrawalMaxDeviationThreshold = 50; // BPS
-        // NOTE: See above
-        autoCompoundRatio = 10_000;
+        withdrawalMaxDeviationThreshold = 0; // BPS
     }
 
     // ===== Modifiers =====

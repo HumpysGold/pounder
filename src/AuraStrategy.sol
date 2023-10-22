@@ -414,24 +414,6 @@ contract AuraStrategy is BaseStrategy, ReentrancyGuardUpgradeable {
 
     /// MANUAL FUNCTIONS ///
 
-    /// @dev manual function to reinvest all Aura that was locked
-    function reinvest() external whenNotPaused returns (uint256) {
-        _onlyGovernance();
-
-        if (processLocksOnReinvest) {
-            // Withdraw all we can
-            LOCKER.processExpiredLocks(false);
-        }
-
-        // Redeposit all into vlAURA
-        uint256 toDeposit = IERC20Upgradeable(want).balanceOf(address(this));
-
-        // Redeposit into vlAURA
-        _deposit(toDeposit);
-
-        return toDeposit;
-    }
-
     /// @dev process all locks, to redeem
     /// @notice No Access Control Checks, anyone can unlock an expired lock
     function manualProcessExpiredLocks() public {
