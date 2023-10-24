@@ -393,5 +393,5 @@ abstract contract BaseStrategy is PausableUpgradeable {
     /// @return rewards An array of `TokenAmount` containing the address and amount of each reward token.
     function balanceOfRewards() external view virtual returns (TokenAmount[] memory rewards);
 
-    uint256[49] private __gap;
+    uint256[50] private __gap;
 }
