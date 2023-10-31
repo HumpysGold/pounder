@@ -3,9 +3,16 @@ pragma solidity 0.8.20;
 
 import "./BaseFixture.sol";
 
+import { BaseStrategy } from "../src/BaseStrategy.sol";
+
 /// @dev Basic tests for the Vault contract
 contract TestAuraStrategy is BaseFixture {
     using stdStorage for StdStorage;
+
+    struct TokenAmount {
+        address token;
+        uint256 amount;
+    }
 
     function setUp() public override {
         super.setUp();
@@ -81,6 +88,86 @@ contract TestAuraStrategy is BaseFixture {
     function testStrategist() public {
         // Strategy strategist is same as in vault
         assertEq(auraStrategy.strategist(), vault.strategist());
+    }
+
+    function testBalanceOfRewards() public {
+        // NOTE: acknowledge that no Paladin info is contained in `balanceOfRewards`
+        BaseStrategy.TokenAmount memory tokenAmount = auraStrategy.balanceOfRewards()[0];
+
+        // expecting aurabal and non-neg amount after some has being locked
+        assertEq(tokenAmount.token, address(auraStrategy.AURABAL()));
+        assertEq(tokenAmount.amount, 0);
+
+        uint256 _depositPerUser = 1000e18;
+        _setupStrategy(_depositPerUser);
+
+        vm.prank(governance);
+        vault.earn();
+
+        // advanced days for aurabal rewards to accum
+        vm.warp(block.timestamp + 7 days);
+        tokenAmount = auraStrategy.balanceOfRewards()[0];
+
+        // expecting non-neg amount after aura has being locked in strat
+        assertGt(tokenAmount.amount, 0);
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
+    ///////                 Only governance function tests                  /////
+    /////////////////////////////////////////////////////////////////////////////
+
+    /// @notice Whole flow around snapshot
+    function testSnapshotDelegation() public {
+        bytes32 snapId = 0x62616c616e6365722e6574680000000000000000000000000000000000000000;
+        address delegate = address(56);
+
+        // Nothing was set yet
+        assertEq(auraStrategy.getSnapshotDelegate(snapId), address(0));
+
+        vm.expectRevert("onlyGovernance");
+        auraStrategy.setSnapshotDelegate(snapId, delegate);
+
+        vm.startPrank(governance);
+        auraStrategy.setSnapshotDelegate(snapId, delegate);
+
+        assertEq(auraStrategy.getSnapshotDelegate(snapId), delegate);
+
+        vm.startPrank(governance);
+        auraStrategy.clearSnapshotDelegate(snapId);
+
+        // Ensure it was clear up properly for given id
+        assertEq(auraStrategy.getSnapshotDelegate(snapId), address(0));
+    }
+
+    /// @dev it should revert in the following cases
+    function test_RevertSetRedirectionToken() public {
+        vm.expectRevert("Invalid token address");
+        vm.startPrank(governance);
+        auraStrategy.setRedirectionToken(address(0), 0);
+
+        vm.expectRevert("Invalid redirection fee");
+        vm.startPrank(governance);
+        auraStrategy.setRedirectionToken(address(124), 50_000);
+    }
+
+    function testSetWithdrawalSafetyCheck() public {
+        vm.expectRevert("onlyGovernance");
+        auraStrategy.setWithdrawalSafetyCheck(false);
+
+        vm.startPrank(governance);
+        auraStrategy.setWithdrawalSafetyCheck(false);
+
+        assertFalse(auraStrategy.withdrawalSafetyCheck());
+    }
+
+    function testSetProcessLocksOnReinvest() public {
+        vm.expectRevert("onlyGovernance");
+        auraStrategy.setProcessLocksOnReinvest(true);
+
+        vm.startPrank(governance);
+        auraStrategy.setProcessLocksOnReinvest(true);
+
+        assertTrue(auraStrategy.processLocksOnReinvest());
     }
 
     /////////////////////////////////////////////////////////////////////////////
