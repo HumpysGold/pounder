@@ -18,6 +18,10 @@ contract BaseFixture is Test {
     ERC20 public WETH = ERC20(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
     address public constant LOCKER_REWARDS_DISTRIBUTOR = address(0xd9e863B7317a66fe0a4d2834910f604Fd6F89C6c);
 
+    // amm's
+    address public constant UNI_V2 = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address public constant BALANCER_VAULT = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+
     Utils internal utils;
     address payable[] internal users;
     address public alice;
@@ -88,6 +92,11 @@ contract BaseFixture is Test {
         vm.label(governance, "Governance");
         treasury = users[4];
         vm.label(treasury, "Treasury");
+
+        // amm labels
+        vm.label(UNI_V2, "UNI_V2");
+        vm.label(BALANCER_VAULT, "BALANCER_VAULT");
+
         uint256[4] memory _feeConfig = [uint256(0), uint256(0), uint256(0), uint256(0)];
         string memory _name = "Gold Aura";
         string memory _symbol = "gAURA";
