@@ -7,20 +7,12 @@ import { AdminUpgradeabilityProxy } from "../src/proxy/AdminUpgradeabilityProxy.
 import { AuraStrategy } from "../src/AuraStrategy.sol";
 import { Vault } from "../src/Vault.sol";
 
-import { ERC20WantMock } from "../test/mocks/token/ERC20WantMock.sol";
-
 /// @notice Deploys all infrastructure in the following order:
 /// 1. {Vault}
 /// 2. {AdminUpgradeabilityProxy} - proxy for vault
 /// 3. {AuraStrategy}
 /// 4. {AdminUpgradeabilityProxy} - proxy for strategy
 contract ProductionWireUpDeployment is Script {
-    // rpcs
-    uint256 public constant SEPOLIA_CHAIN_ID = 11_155_111;
-
-    // want token testnet
-    ERC20WantMock public testnetWant;
-
     // proxy vault
     AdminUpgradeabilityProxy public goldAuraVaultProxy;
 
@@ -43,11 +35,6 @@ contract ProductionWireUpDeployment is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // NOTE: only deployed during testnet
-        if (block.chainid == SEPOLIA_CHAIN_ID) {
-            testnetWant = new ERC20WantMock();
-        }
-
         // production setting
         uint256[4] memory vaultFeeConfig = [PERFORMANCE_GOV_FEE, uint256(0), uint256(0), uint256(0)];
         string memory vaultName = "Gold Aura";
@@ -55,12 +42,12 @@ contract ProductionWireUpDeployment is Script {
 
         bytes memory initVaultData = abi.encodeWithSignature(
             "initialize(address,address,address,address,address,address,string,string,uint256[4])",
-            block.chainid == SEPOLIA_CHAIN_ID ? address(testnetWant) : AURA, // token want
-            block.chainid == SEPOLIA_CHAIN_ID ? msg.sender : GOLD_MSIG, // governance
+            AURA, // token want
+            GOLD_MSIG, // governance
             address(1337), //  keeper. TODO: (TBD!) update with Gelato address assigned for the web3 task
             address(1337), // guardian. TODO: (TBD!) discuss which setup will be handling this role / address
-            block.chainid == SEPOLIA_CHAIN_ID ? msg.sender : GOLD_MSIG, // treasury
-            block.chainid == SEPOLIA_CHAIN_ID ? msg.sender : GOLD_MSIG, // strategist. NOTE: cannot be zero by default
+            GOLD_MSIG, // treasury
+            GOLD_MSIG, // strategist. NOTE: cannot be zero by default
             vaultName,
             vaultSymbol,
             vaultFeeConfig
