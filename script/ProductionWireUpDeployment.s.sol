@@ -51,7 +51,7 @@ contract ProductionWireUpDeployment is Script {
         // production setting
         uint256[4] memory vaultFeeConfig = [PERFORMANCE_GOV_FEE, uint256(0), uint256(0), uint256(0)];
         string memory vaultName = "Gold Aura";
-        string memory vaultSymbol = "gAURA";
+        string memory vaultSymbol = "goldAURA";
 
         bytes memory initVaultData = abi.encodeWithSignature(
             "initialize(address,address,address,address,address,address,string,string,uint256[4])",
