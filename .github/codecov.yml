@@ -5,3 +5,4 @@ ignore:
   - "test/Utils.sol"
   - "test/AuraStrategy.t.sol"
   - "test/Vault.t.sol"
+  - "script/ProductionWireUpDeployment.s.sol"
