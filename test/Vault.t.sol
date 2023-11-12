@@ -279,6 +279,33 @@ contract TestVault is BaseFixture {
         assertEq(vault.available(), approxAvailable);
     }
 
+    function testSimpleDepositWithTransfer(uint256 _depositAmount) public {
+        vm.assume(_depositAmount > 1e18);
+        vm.assume(_depositAmount < 100_000_000e18);
+        // Give alice some AURA:
+        setStorage(alice, AURA.balanceOf.selector, address(AURA), _depositAmount);
+        vm.startPrank(alice);
+        // Approve the vault to spend AURA:
+        AURA.approve(address(vault), _depositAmount);
+        vault.deposit(_depositAmount);
+        vm.stopPrank();
+
+        // Make sure alice has shares now
+        assertEq(vault.balanceOf(alice), _depositAmount);
+        // As Alice holds 100% shares in vault, she has 100% shares as well:
+        assertEq(vault.balanceOf(alice) * vault.getPricePerFullShare() / 1e18, _depositAmount);
+        assertEq(vault.getPricePerFullShare(), 1e18);
+
+        // Transfer shares to bob and make sure he has them
+        vm.startPrank(alice);
+        vault.transfer(bob, vault.balanceOf(alice));
+        vm.stopPrank();
+        assertEq(vault.balanceOf(bob), _depositAmount);
+        // As Alice holds 100% shares in vault, she has 100% shares as well:
+        assertEq(vault.balanceOf(bob) * vault.getPricePerFullShare() / 1e18, _depositAmount);
+        assertEq(vault.getPricePerFullShare(), 1e18);
+    }
+
     function testWithdraw(uint256 _depositAmount) public {
         vm.assume(_depositAmount > 1e18);
         vm.assume(_depositAmount < 100_000_000e18);
