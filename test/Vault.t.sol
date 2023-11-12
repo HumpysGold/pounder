@@ -417,13 +417,29 @@ contract TestVault is BaseFixture {
         vm.prank(governance);
         vault.earn();
         // Make sure X% of AURA is transferred to strategy
-        console2.log("vaultBalanceBefore", vaultBalanceBefore);
         assertFalse(AURA.balanceOf(address(vault)) == 0);
         assertEq(AURA.balanceOf(address(vault)), vaultBalanceBefore - vaultBalanceBefore * vault.toEarnBps() / BIPS);
         // Make sure aura locked in strategy and not available for withdraw
         assertEq(auraStrategy.balanceOfWant(), 0);
         // Make sure aura is locked in strategy
         assertEq(auraStrategy.balanceOfPool(), vaultBalanceBefore * vault.toEarnBps() / BIPS);
+    }
+
+    /// @dev Simple earn test to make sure only authorized users can call earn
+    function testEarnUnhappy(uint256 _depositAmount) public {
+        vm.assume(_depositAmount > 10e18);
+        vm.assume(_depositAmount < 100_000_000e18);
+        // Give alice some AURA:
+        setStorage(alice, AURA.balanceOf.selector, address(AURA), _depositAmount);
+        vm.startPrank(alice);
+        // Approve the vault to spend AURA:
+        AURA.approve(address(vault), _depositAmount);
+        vault.deposit(_depositAmount);
+        vm.stopPrank();
+
+        vm.prank(alice);
+        vm.expectRevert("onlyAuthorizedActors");
+        vault.earn();
     }
 
     /// @dev Deposit, wait for aura to unlock, unlock aura and withdraw to vault
